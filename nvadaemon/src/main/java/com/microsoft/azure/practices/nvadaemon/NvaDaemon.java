@@ -7,6 +7,9 @@ import org.apache.curator.framework.CuratorFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class NvaDaemon implements Daemon {
     private static final Logger LOG = LoggerFactory.getLogger(NvaDaemon.class);
     private Thread thread;
@@ -14,6 +17,8 @@ public class NvaDaemon implements Daemon {
     private Object monitor = new Object();
     private NvaDaemonConfig config;
     private CuratorFramework client;
+    private ReentrantLock lock = new ReentrantLock();
+    private Condition shutdown = lock.newCondition();
 
     public NvaDaemon(NvaDaemonConfig config, CuratorFramework client) {
         if (config == null) {
@@ -97,17 +102,27 @@ public class NvaDaemon implements Daemon {
                     adapter.start();
                     LOG.debug("Leader selector adapter started");
                     while (!stopped) {
-                        synchronized (monitor) {
-                            try {
-                                LOG.debug("Waiting on monitor");
-                                monitor.wait();
-                                LOG.debug("Finished waiting on monitor");
-                                //Thread.sleep(5000);
-                            } catch (InterruptedException e) {
-                                // Continue and check flag.
-                                LOG.warn("Monitor interrupted", e);
-                            }
+                        lock.lock();
+                        try {
+                            LOG.debug("Waiting on signal");
+                            shutdown.await();
+                            LOG.debug("Signal received");
+                        } catch (InterruptedException e) {
+                            LOG.warn("lock interrupted", e);
+                        } finally {
+                            lock.unlock();
                         }
+//                        synchronized (monitor) {
+//                            try {
+//                                LOG.debug("Waiting on monitor");
+//                                monitor.wait();
+//                                LOG.debug("Finished waiting on monitor");
+//                                //Thread.sleep(5000);
+//                            } catch (InterruptedException e) {
+//                                // Continue and check flag.
+//                                LOG.warn("Monitor interrupted", e);
+//                            }
+//                        }
                     }
 
 //                    System.out.println("Closing adapter");
@@ -139,11 +154,19 @@ public class NvaDaemon implements Daemon {
         LOG.info("Stopping daemon");
         stopped = true;
         //thread.interrupt();
-        synchronized (monitor) {
-            LOG.debug("Notifying monitor");
-            monitor.notify();
-            LOG.debug("Notified monitor");
+        lock.lock();
+        try {
+            LOG.debug("Signalling condition");
+            shutdown.signal();
+            LOG.debug("Signalled condition");
+        } finally {
+            lock.unlock();
         }
+//        synchronized (monitor) {
+//            LOG.debug("Notifying monitor");
+//            monitor.notify();
+//            LOG.debug("Notified monitor");
+//        }
         try {
             LOG.debug("Joining daemon thread");
             thread.join();
