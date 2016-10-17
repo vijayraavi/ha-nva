@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/ha-nva.iml" filepath="$PROJECT_DIR$/ha-nva.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nvadaemon/nvadaemon.iml" filepath="$PROJECT_DIR$/nvadaemon/nvadaemon.iml" />
+    </modules>
+  </component>
+</project>
