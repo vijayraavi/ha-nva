@@ -16,12 +16,12 @@ import java.io.InputStreamReader;
 
 public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
-    private CuratorFramework client;
+    //private CuratorFramework client;
     private NvaDaemonConfig config;
-    private static final String ZK_NAMESPACE = "nvadaemon";
+//    private static final String ZK_NAMESPACE = "nvadaemon";
 
     protected void close() {
-        client.close();
+        //client.close();
     }
     protected void initialize(String[] args) throws ConfigException {
         CommandLine commandLine = parseOptions(args);
@@ -31,13 +31,13 @@ public class Main {
         }
 
         this.config = parseConfig(commandLine.getOptionValue("config"));
-        try {
-            createClient(this.config);
-        }
-        catch (InterruptedException e)
-        {
-            LOG.error(e.getMessage());
-        }
+//        try {
+//            createClient(this.config);
+//        }
+//        catch (InterruptedException e)
+//        {
+//            LOG.error(e.getMessage());
+//        }
 
         if (commandLine.hasOption("daemon")) {
             try {
@@ -67,19 +67,19 @@ public class Main {
         return cfg;
     }
 
-    private void createClient(NvaDaemonConfig config) throws InterruptedException {
-        LOG.debug("Creating CuratorFramework");
-        client = CuratorFrameworkFactory.builder()
-            .connectString(config.getConnectionString())
-            .retryPolicy(new ExponentialBackoffRetry(1000, 10))
-            .namespace(ZK_NAMESPACE)
-            .build();
-        LOG.debug("Starting CuratorFramework");
-        client.start();
-        LOG.debug("Waiting for Zookeeper connection");
-        client.blockUntilConnected();
-        LOG.debug("Connected to Zookeeper");
-    }
+//    private void createClient(NvaDaemonConfig config) throws InterruptedException {
+//        LOG.debug("Creating CuratorFramework");
+//        client = CuratorFrameworkFactory.builder()
+//            .connectString(config.getConnectionString())
+//            .retryPolicy(new ExponentialBackoffRetry(1000, 10))
+//            .namespace(ZK_NAMESPACE)
+//            .build();
+//        LOG.debug("Starting CuratorFramework");
+//        client.start();
+//        LOG.debug("Waiting for Zookeeper connection");
+//        client.blockUntilConnected();
+//        LOG.debug("Connected to Zookeeper");
+//    }
 
     private static CommandLine parseOptions(String[] args) {
         Options options = new Options();
@@ -129,7 +129,8 @@ public class Main {
             }
         };
 
-        NvaDaemon daemon = new NvaDaemon(config, client);
+        //NvaDaemon daemon = new NvaDaemon(config, client);
+        NvaDaemon daemon = new NvaDaemon(config);
         try {
             daemon.init(context);
             daemon.start();

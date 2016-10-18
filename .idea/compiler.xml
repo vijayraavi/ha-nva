@@ -23,12 +23,14 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
         <module name="nvadaemon" />
+        <module name="nvadaemon-azure" />
         <module name="nvadaemon-chain" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="ha-nva" target="1.5" />
       <module name="nvadaemon" target="1.7" />
+      <module name="nvadaemon-azure" target="1.5" />
       <module name="nvadaemon-chain" target="1.5" />
     </bytecodeTargetLevel>
   </component>
