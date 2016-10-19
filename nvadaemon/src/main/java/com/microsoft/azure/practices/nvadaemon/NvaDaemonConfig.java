@@ -42,14 +42,12 @@ public class NvaDaemonConfig {
             FileInputStream in = new FileInputStream(configFile);
             try {
                 cfg.load(in);
-            }
-            finally {
+            } finally {
                 in.close();
             }
 
             parseProperties(cfg);
-        }
-        catch (IOException | IllegalArgumentException e) {
+        } catch (IOException | IllegalArgumentException e) {
             throw new ConfigException("Error processing " + path, e);
         }
     }
@@ -78,5 +76,7 @@ public class NvaDaemonConfig {
         }
     }
 
-    public String getConnectionString() { return connectionString; }
+    public String getConnectionString() {
+        return connectionString;
+    }
 }
