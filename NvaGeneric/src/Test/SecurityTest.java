@@ -42,18 +42,19 @@ public class SecurityTest {
 	private char[] passwd;
 	private char[] passwdkey; 
 	private String clientId;
-	private String tenantId;	
+	private String tenantId;
+	
 	
 	
 	
 	 @Before public void initialize() {
 		 // this is the passworkd for the keystore
-		passwd = "changeit".toCharArray();
+		passwd = "passwordforkeystore".toCharArray();
 		// this is the password for the certificate 
 		// it is required becasue the api uses to sign the asserttion
-	    passwdkey = "Pag$1Lab".toCharArray();
-	 	String clientId = "10686b6e-b797-4f4f-9e5d-56b6aaa3b377";
-		String tenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47";	
+	    passwdkey = "passwordforcert".toCharArray();
+	 	clientId = "10686b6e-b797-4f4f-9e5d-56b6aaa3b377";
+		tenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47";	
 	    }
 	 
 	 @After public void tearDown() throws Exception {
@@ -68,7 +69,7 @@ public class SecurityTest {
         FileInputStream fileinput = new FileInputStream(file);
         KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
         String password = "changeit";
-        keystore.load(fileinput, password.toCharArray());
+        keystore.load(fileinput, passwd);
         Certificate certificate = keystore.getCertificate("mykey");
         String certThumbprint =  DigestUtils.sha1Hex(certificate.getEncoded());
         assertTrue(certThumbprint.matches(thumbprint));
@@ -97,10 +98,6 @@ public class SecurityTest {
 	@Test
 	public void canAzureAuthCertAssertion() throws Exception {
 		
-		String clientId = "10686b6e-b797-4f4f-9e5d-56b6aaa3b377";
-		String tenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47";			
-		char[] passwd = "changeit".toCharArray();
-		char[] passwdkey = "Pag$1Lab".toCharArray();
 
 		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 		File file = new File("e:\\certificates\\privatekeystore.jks");
