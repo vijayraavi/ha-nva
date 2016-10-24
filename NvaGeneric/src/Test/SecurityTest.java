@@ -39,9 +39,28 @@ import java.security.cert.X509Certificate;
 
 public class SecurityTest {
 	private String thumbprint = "9278849bf6dcb589b9dbdf77f216c6ee83de46d4";
+	private char[] passwd;
+	private char[] passwdkey; 
+	private String clientId;
+	private String tenantId;	
 	
 	
-	@Ignore
+	
+	 @Before public void initialize() {
+		 // this is the passworkd for the keystore
+		passwd = "changeit".toCharArray();
+		// this is the password for the certificate 
+		// it is required becasue the api uses to sign the asserttion
+	    passwdkey = "Pag$1Lab".toCharArray();
+	 	String clientId = "10686b6e-b797-4f4f-9e5d-56b6aaa3b377";
+		String tenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47";	
+	    }
+	 
+	 @After public void tearDown() throws Exception {
+	     
+	    }
+	
+	
 	@Test
 	public void canGetCertificateFromStore() throws Exception {
 		
@@ -56,28 +75,26 @@ public class SecurityTest {
         fileinput.close();
 	}
 	
-	//@Ignore
 	@Test
 	public void canGetX509FromStore() throws Exception {
 		
-		char[] passwd = "changeit".toCharArray();
-		char[] passwdkey = "Pag$1Lab".toCharArray();
-		 KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-		 File file = new File("e:\\certificates\\privatekeystore.jks");
-	     FileInputStream fileinput = new FileInputStream(file);
-	     ks.load(new FileInputStream("e:\\certificates\\privatekeystore.jks"), passwd);
-	     String alias = ks.aliases().nextElement();
-         KeyStore.PrivateKeyEntry keyEnt = (KeyStore.PrivateKeyEntry)
+		
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+		File file = new File("e:\\certificates\\privatekeystore.jks");
+	    FileInputStream fileinput = new FileInputStream(file);
+	    ks.load(new FileInputStream("e:\\certificates\\privatekeystore.jks"), passwd);
+	    String alias = ks.aliases().nextElement();
+        KeyStore.PrivateKeyEntry keyEnt = (KeyStore.PrivateKeyEntry)
         		 ks.getEntry(alias, new KeyStore.PasswordProtection(passwdkey)); 
-	     X509Certificate cert = (X509Certificate)keyEnt.getCertificate();
-	     String certThumbprint =  DigestUtils.sha1Hex(cert.getEncoded());
-	     assertTrue(certThumbprint.matches(thumbprint));	
+	    X509Certificate cert = (X509Certificate)keyEnt.getCertificate();
+	    String certThumbprint =  DigestUtils.sha1Hex(cert.getEncoded());
+	    assertTrue(certThumbprint.matches(thumbprint));
+	    fileinput.close();
 	}
 	
 //
-//	@Ignore
+
 	@Test
-	
 	public void canAzureAuthCertAssertion() throws Exception {
 		
 		String clientId = "10686b6e-b797-4f4f-9e5d-56b6aaa3b377";
@@ -85,17 +102,17 @@ public class SecurityTest {
 		char[] passwd = "changeit".toCharArray();
 		char[] passwdkey = "Pag$1Lab".toCharArray();
 
-		 KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-		 File file = new File("e:\\certificates\\privatekeystore.jks");
-	     FileInputStream fileinput = new FileInputStream(file);
-	     ks.load(new FileInputStream("e:\\certificates\\privatekeystore.jks"), passwd);
-	     String alias = ks.aliases().nextElement();
-         KeyStore.PrivateKeyEntry keyEnt = (KeyStore.PrivateKeyEntry)
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+		File file = new File("e:\\certificates\\privatekeystore.jks");
+	    FileInputStream fileinput = new FileInputStream(file);
+	    ks.load(new FileInputStream("e:\\certificates\\privatekeystore.jks"), passwd);
+	    String alias = ks.aliases().nextElement();
+        KeyStore.PrivateKeyEntry keyEnt = (KeyStore.PrivateKeyEntry)
         		 ks.getEntry(alias, new KeyStore.PasswordProtection(passwdkey)); 
-	//     System.out.println(keyEnt);
-	     X509Certificate cert = (X509Certificate)keyEnt.getCertificate();
+
+	    X509Certificate cert = (X509Certificate)keyEnt.getCertificate();
 	  
-	     PrivateKey key = (PrivateKey) ks.getKey(alias, passwdkey);		
+	    PrivateKey key = (PrivateKey) ks.getKey(alias, passwdkey);		
 	     
 		String url = "https://login.microsoftonline.com/" + tenantId + "/oauth2/authorize";
 		String urlmgm = "https://management.azure.com/";
@@ -106,21 +123,20 @@ public class SecurityTest {
 		
 		AsymmetricKeyCredential credential = AsymmetricKeyCredential.create(clientId,key,cert );
 		
-		 Future<AuthenticationResult>  future = authContext.acquireToken(
+		Future<AuthenticationResult>  future = authContext.acquireToken(
                  "https://management.azure.com/",
                  credential,
                  null);
 		 
-         AuthenticationResult authResult = future.get();
-         
-         System.out.println(authResult.getAccessToken());
+        AuthenticationResult authResult = future.get(); 
+        System.out.println(authResult.getAccessToken());
 		  
-         ServiceClientCredentials credentials = new TokenCredentials(null,authResult.getAccessToken());             
-         Azure azure = Azure
+        ServiceClientCredentials credentials = new TokenCredentials(null,authResult.getAccessToken());             
+        Azure azure = Azure
                   .configure()
-                        .authenticate(credentials)
-                        .withDefaultSubscription();	
-         
+                  .authenticate(credentials)
+                  .withDefaultSubscription();	
+        
          assertNotNull(authResult.getAccessToken());
          assertNotNull(azure);
          
