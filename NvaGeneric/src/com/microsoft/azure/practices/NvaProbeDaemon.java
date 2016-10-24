@@ -31,7 +31,7 @@ public class NvaProbeDaemon implements Daemon {
          * method as follows:
          */
         String[] args = daemonContext.getArguments(); 
-        
+        System.out.println("nva started");
       
         int arrindex = Arrays.asList(args).indexOf("port");
         

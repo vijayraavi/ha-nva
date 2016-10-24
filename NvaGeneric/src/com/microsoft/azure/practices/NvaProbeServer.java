@@ -19,6 +19,7 @@ public class NvaProbeServer implements ProbeServer, Runnable {
 	 private final ServerSocket serverSocket;
 	 private PrintWriter writer;
 	 private  BufferedReader reader;
+	 
 	 	 
 	 public NvaProbeServer(int port) throws IOException{
 		 serverSocket = new ServerSocket(port);	 
@@ -31,7 +32,7 @@ public class NvaProbeServer implements ProbeServer, Runnable {
 		 while(!Thread.currentThread().isInterrupted()) 
 		 {
 			 try{	
-				 System.out.println("listening on socket"); 
+				 System.out.println("listening on socket Port "+serverSocket.getLocalPort()); 
 				 Socket clientSocket = serverSocket.accept();
 				 System.out.println("communication started");
 				 reader = new BufferedReader
