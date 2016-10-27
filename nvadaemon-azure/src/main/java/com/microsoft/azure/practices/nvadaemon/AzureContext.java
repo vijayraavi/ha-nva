@@ -27,9 +27,9 @@ public class AzureContext extends ContextMap {
 
     public static AzureContext create() throws CloudException, IOException {
         AzureContext context = new AzureContext();
-        String clientId = "d5e26522-ad01-4a89-96e2-ee7033b780ae";
-        String tenantId = "72f988bf-86f1-41af-91ab-2d7cd011db47";
-        String secret = "NPGMmWXcN0GaPQAbA59j/wniRdvH78ob5lgf616TJeg=";
+        String clientId = "";
+        String tenantId = "";
+        String secret = "";
         ServiceClientCredentials credentials = new ApplicationTokenCredentials(
                 clientId, tenantId, secret, AzureEnvironment.AZURE);
 
