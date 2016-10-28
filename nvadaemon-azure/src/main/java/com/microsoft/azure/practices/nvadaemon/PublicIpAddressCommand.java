@@ -1,6 +1,6 @@
 package com.microsoft.azure.practices.nvadaemon;
 
-import com.microsoft.azure.Azure;
+import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.practices.chain.Command;
 
 public class PublicIpAddressCommand implements Command<AzureContext> {

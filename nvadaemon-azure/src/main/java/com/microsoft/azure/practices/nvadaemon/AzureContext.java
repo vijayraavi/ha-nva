@@ -1,7 +1,8 @@
 package com.microsoft.azure.practices.nvadaemon;
 
 import com.google.common.base.Preconditions;
-import com.microsoft.azure.Azure;
+import com.microsoft.azure.credentials.AzureTokenCredentials;
+import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.CloudException;
 import com.microsoft.azure.credentials.ApplicationTokenCredentials;
@@ -30,7 +31,7 @@ public class AzureContext extends ContextMap {
         String clientId = "";
         String tenantId = "";
         String secret = "";
-        ServiceClientCredentials credentials = new ApplicationTokenCredentials(
+        AzureTokenCredentials credentials = new ApplicationTokenCredentials(
                 clientId, tenantId, secret, AzureEnvironment.AZURE);
 
         Azure azure = Azure

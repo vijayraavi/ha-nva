@@ -137,8 +137,8 @@ public class NvaMonitor implements Closeable {
     public synchronized void start() throws Exception {
         Preconditions.checkState(!executorService.isShutdown(), "Already started");
         Callable<Void> monitor =
-            createMonitorCallable("com.microsoft.azure.practices.nvadaemon.ProbeMonitor");
-            //createMonitorCallable(config.getMonitorClass());
+            //createMonitorCallable("com.microsoft.azure.practices.nvadaemon.ProbeMonitor");
+            createMonitorCallable(config.getMonitorClass());
         isRunning = true;
         Future<Void> task = executorService.submit(
             monitor

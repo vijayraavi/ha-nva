@@ -6,9 +6,6 @@ import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonInitException;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.CuratorEvent;
-import org.apache.curator.framework.api.CuratorEventType;
-import org.apache.curator.framework.api.CuratorListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +49,7 @@ public class NvaDaemon implements Daemon {
     }
 
     @Override
-    public void init(DaemonContext daemonContext) throws InterruptedException, DaemonInitException {
+    public void init(DaemonContext daemonContext) throws DaemonInitException {
         Preconditions.checkNotNull(daemonContext, "daemonContext cannot be null");
         try {
             config = NvaDaemonConfig.parseArguments(daemonContext.getArguments());
@@ -120,13 +117,13 @@ public class NvaDaemon implements Daemon {
         }
         try {
             log.debug("Joining daemon thread");
-            Future<?> task = ourTask.get();
-            if (task != null) {
-                log.debug("Waiting for task completion");
-                task.get();
-                log.debug("Task completed");
-                ourTask.set(null);
-            }
+//            Future<?> task = ourTask.get();
+//            if (task != null) {
+//                log.debug("Waiting for task completion");
+//                task.get();
+//                log.debug("Task completed");
+//                ourTask.set(null);
+//            }
             executorService.shutdown();
             executorService.awaitTermination(10000, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
