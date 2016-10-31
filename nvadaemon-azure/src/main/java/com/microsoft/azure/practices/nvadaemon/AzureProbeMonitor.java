@@ -1,32 +1,22 @@
 package com.microsoft.azure.practices.nvadaemon;
 
 import com.google.common.base.Preconditions;
-import com.microsoft.aad.adal4j.AuthenticationContext;
-import com.microsoft.aad.adal4j.AuthenticationResult;
-import com.microsoft.aad.adal4j.ClientCredential;
 import com.microsoft.azure.AzureEnvironment;
+import com.microsoft.azure.CloudException;
+import com.microsoft.azure.credentials.ApplicationTokenCredentials;
 import com.microsoft.azure.credentials.AzureTokenCredentials;
 import com.microsoft.azure.management.Azure;
-import com.microsoft.azure.CloudException;
-import com.microsoft.azure.PagedList;
-import com.microsoft.azure.credentials.ApplicationTokenCredentials;
-import com.microsoft.azure.credentials.UserTokenCredentials;
-import com.microsoft.azure.management.resources.ResourceGroup;
+import com.microsoft.azure.management.network.*;
 import com.microsoft.azure.practices.monitor.ScheduledMonitor;
-import com.microsoft.rest.credentials.ServiceClientCredentials;
-import com.microsoft.rest.credentials.TokenCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.naming.ServiceUnavailableException;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.TimeUnit;
 
 public class AzureProbeMonitor implements ScheduledMonitor {
 
@@ -37,11 +27,20 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     private static final String PROBE_IP_ADDRESS="probe.ipAddress";
     private static final String PROBE_PORT="probe.port";
 
+    private static final String AZURE_RESOURCE_GROUP="probe.resourceGroup";
+    private static final String NVA_PUBLIC_IP_ADDRESS="probe.publicIpAddress";
+    private static final String NVA_ROUTE_TABLE="probe.routeTable";
+    private static final String NVA_ROUTE_TABLE_ROUTE="probe.routeTableRoute";
+    //private static final ArrayList<String> networkInterfaces = new ArrayList<>();
+    private final ArrayList<NvaNetworkConfig> networkConfigurations = new ArrayList<>();
+
     private int failures;
     private Map<String, String> config;
     private SocketChannel channel;
-
-//    private Azure azure;
+    private Azure azure;
+    private int currentNetworkInterfaceIndex = 0;
+    private PublicIpAddress publicIpAddress;
+    private RouteTable routeTable;
 //
 //    private AuthenticationResult getAccessTokenFromUserCredentials() throws Exception {
 //        AuthenticationContext context = null;
@@ -73,6 +72,225 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 //        return result;
 //    }
 
+    private static final class NvaNetworkConfig {
+        private String networkInterfaceIn;
+        private String networkInterfaceOut;
+
+        private NvaNetworkConfig(String networkInterfaceIn, String networkInterfaceOut) {
+            Preconditions.checkNotNull(networkInterfaceIn, "networkInterfaceIn cannot be null");
+            Preconditions.checkNotNull(networkInterfaceOut, "networkInterfaceOut cannot be null");
+            this.networkInterfaceIn = networkInterfaceIn;
+            this.networkInterfaceOut = networkInterfaceOut;
+        }
+
+        private String getNetworkInterfaceIn() { return this.networkInterfaceIn; }
+
+        private String getNetworkInterfaceOut() { return this.networkInterfaceOut; }
+    }
+
+    private int indexOfNetworkInterfaceIn(String name) {
+        Preconditions.checkNotNull(name, "name cannot be null");
+        for (int i = 0; i < networkConfigurations.size(); i++) {
+            if (name.equals(networkConfigurations.get(i).getNetworkInterfaceIn())) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int indexOfNetworkInterfaceOut(String name) {
+        Preconditions.checkNotNull(name, "name cannot be null");
+        for (int i = 0; i < networkConfigurations.size(); i++) {
+            if (name.equals(networkConfigurations.get(i).getNetworkInterfaceOut())) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void readConfiguration() {
+        ArrayList<String> prefixes = new ArrayList<>();
+        for (String key : this.config.keySet()) {
+            if (key.startsWith("probe.nva")) {
+                String prefix = key.substring(0, key.lastIndexOf("."));
+                if (!prefixes.contains(prefix)) {
+                    prefixes.add(prefix);
+                }
+            }
+        }
+
+        for (String prefix : prefixes) {
+            this.networkConfigurations.add(new NvaNetworkConfig(
+                this.config.get(prefix + ".networkInterfaceIn"),
+                this.config.get(prefix + ".networkInterfaceOut")
+            ));
+        }
+
+//        for (Map.Entry<String, String> entry : this.config.entrySet()) {
+//            if (entry.getKey().startsWith("probe.nva")) {
+//                networkInterfaces.add(entry.getValue());
+//            }
+//        }
+    }
+    private void initializeAzure() throws Exception {
+        AzureTokenCredentials credentials = new ApplicationTokenCredentials(
+            config.get(CLIENT_ID_SETTING),
+            config.get(TENANT_ID_SETTING),
+            config.get(CLIENT_SECRET_SETTING),
+            AzureEnvironment.AZURE
+        );
+        try {
+            azure = Azure.configure()
+                .authenticate(credentials)
+                .withDefaultSubscription();
+        } catch (CloudException | IOException e) {
+            log.error("Exception creating Azure client", e);
+            throw e;
+        }
+    }
+
+    private void getCurrent() {
+        String resourceGroupName = this.config.get(AZURE_RESOURCE_GROUP);
+        String pipName = this.config.get(NVA_PUBLIC_IP_ADDRESS);
+        String routeTableName = this.config.get(NVA_ROUTE_TABLE);
+        String routeName = this.config.get(NVA_ROUTE_TABLE_ROUTE);
+        PublicIpAddress publicIpAddress =
+            azure.publicIpAddresses().getByGroup(resourceGroupName, pipName);
+        if (publicIpAddress == null) {
+            throw new IllegalArgumentException("Invalid PublicIpAddress name: " + pipName);
+        }
+
+        if (!publicIpAddress.hasAssignedNetworkInterface()) {
+            throw new IllegalArgumentException(
+                "PublicIpAddress " + pipName +" is not assigned to a NetworkInterface");
+        }
+
+        NicIpConfiguration nicIpConfiguration =
+            publicIpAddress.getAssignedNetworkInterfaceIpConfiguration();
+
+        NetworkInterface networkInterface = nicIpConfiguration.parent();
+        log.debug("NetworkInterface: " + networkInterface.name() + " PublicIpAddress: " + pipName);
+        //currentNetworkInterfaceIndex = networkInterfaces.indexOf(networkInterface.name());
+        currentNetworkInterfaceIndex = indexOfNetworkInterfaceIn(networkInterface.name());
+        if (currentNetworkInterfaceIndex == -1) {
+            throw new IllegalArgumentException("NetworkInterface " + networkInterface.name() +
+                " was not found in the list of valid network interfaces");
+        }
+
+        RouteTable routeTable = azure.routeTables().getByGroup(resourceGroupName,
+            routeTableName);
+        if (routeTable == null) {
+            throw new IllegalArgumentException("Invalid RouteTable name: " + routeTableName);
+        }
+
+        Route route = routeTable.routes().get(routeName);
+        if (route == null) {
+            throw new IllegalArgumentException("Invalid Route name: " + routeName);
+        }
+
+        // Save the public ip address
+        this.publicIpAddress = publicIpAddress;
+        // Save the route table
+        this.routeTable = routeTable;
+    }
+
+    private NetworkInterface getNetworkInterfaceIn(int index) throws
+        IndexOutOfBoundsException, IllegalArgumentException {
+        //if ((index < 0) || (index >= networkInterfaces.size())) {
+        if ((index < 0) || (index >= networkConfigurations.size())) {
+            throw new IndexOutOfBoundsException("Index " + index + " is invalid for network interfaces");
+        }
+        NetworkInterface networkInterface = this.azure.networkInterfaces().getByGroup(
+            //this.config.get(AZURE_RESOURCE_GROUP), networkInterfaces.get(index));
+            this.config.get(AZURE_RESOURCE_GROUP), networkConfigurations.get(index).getNetworkInterfaceIn());
+        if (networkInterface == null) {
+            throw new IllegalArgumentException("Error getting NetworkInterface " + index);
+        }
+
+        return networkInterface;
+    }
+
+    private NetworkInterface getNetworkInterfaceOut(int index) throws
+        IndexOutOfBoundsException, IllegalArgumentException {
+        //if ((index < 0) || (index >= networkInterfaces.size())) {
+        if ((index < 0) || (index >= networkConfigurations.size())) {
+            throw new IndexOutOfBoundsException("Index " + index + " is invalid for network interfaces");
+        }
+        NetworkInterface networkInterface = this.azure.networkInterfaces().getByGroup(
+            //this.config.get(AZURE_RESOURCE_GROUP), networkInterfaces.get(index));
+            this.config.get(AZURE_RESOURCE_GROUP), networkConfigurations.get(index).getNetworkInterfaceOut());
+        if (networkInterface == null) {
+            throw new IllegalArgumentException("Error getting NetworkInterface " + index);
+        }
+
+        return networkInterface;
+    }
+
+    private void migratePublicIpAddress() {
+        //int nextNetworkInterfaceIndex = (this.currentNetworkInterfaceIndex + 1) % networkInterfaces.size();
+        int nextNetworkInterfaceIndex = (this.currentNetworkInterfaceIndex + 1) % networkConfigurations.size();
+        NetworkInterface currentNetworkInterface = null;
+        NetworkInterface nextNetworkInterface = null;
+        NetworkInterface nextNetworkInterfaceOut = null;
+
+        try {
+            log.debug("Getting current network interface");
+            currentNetworkInterface = getNetworkInterfaceIn(this.currentNetworkInterfaceIndex);
+            log.debug("Got current network interface");
+        } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Error getting current network interface: " +
+                this.currentNetworkInterfaceIndex);
+        }
+
+        try {
+            log.debug("Getting next network interface");
+            nextNetworkInterface = getNetworkInterfaceIn(nextNetworkInterfaceIndex);
+            log.debug("Got next network interface");
+        } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Error getting next network interface: " +
+                nextNetworkInterfaceIndex);
+        }
+
+        try {
+            log.debug("Getting next network interface out");
+            nextNetworkInterfaceOut = getNetworkInterfaceOut(nextNetworkInterfaceIndex);
+            log.debug("Got next network interface out");
+        } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Error getting next network interface out: " +
+                nextNetworkInterfaceIndex);
+        }
+
+        log.debug("Removing public ip address from current network interface");
+        // Swap the pip
+        currentNetworkInterface.update()
+            .withoutPrimaryPublicIpAddress()
+            .apply();
+        log.debug("Public ip address removed from current network interface");
+
+        // Not sure we even need this, but let's keep things up to date.
+        //this.publicIpAddress = this.publicIpAddress.refresh();
+        log.debug("Adding public ip address to next network interface");
+        nextNetworkInterface.update()
+            .withExistingPrimaryPublicIpAddress(this.publicIpAddress)
+            .apply();
+        log.debug("Added public ip address to next network interface");
+
+        // Update the route table
+        log.debug("Updating route " + this.config.get(NVA_ROUTE_TABLE_ROUTE) +
+            " to " + nextNetworkInterface.primaryPrivateIp());
+        routeTable.update()
+            .updateRoute(this.config.get(NVA_ROUTE_TABLE_ROUTE))
+            .withNextHopToVirtualAppliance(nextNetworkInterface.primaryPrivateIp())
+            .parent()
+            .apply();
+        log.debug("Updated route " + this.config.get(NVA_ROUTE_TABLE_ROUTE) +
+            " to " + nextNetworkInterface.primaryPrivateIp());
+        //this.publicIpAddress = this.publicIpAddress.refresh();
+        this.currentNetworkInterfaceIndex = nextNetworkInterfaceIndex;
+    }
+
     @Override
     public void init(Map<String, String> config) throws Exception {
         Preconditions.checkNotNull(config, "config cannot be null");
@@ -85,14 +303,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 //            log.error("Error getting access token", e);
 //        }
 
-//        AzureTokenCredentials credentials = new ApplicationTokenCredentials(
-//            config.get(CLIENT_ID_SETTING),
-//            config.get(TENANT_ID_SETTING),
-//            config.get(CLIENT_SECRET_SETTING),
-//            AzureEnvironment.AZURE
-//        );
-
-
+        initializeAzure();
+        readConfiguration();
+        getCurrent();
 //        // See if it's okhttp
 //        // It's okhttp.  If we wait six minutes, shutting down the daemon will
 //        // hang for at least 15 seconds (that's when exec:java terminates the main
@@ -117,20 +330,11 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 //        c.dispatcher().executorService().shutdown();
 //        c.connectionPool().evictAll();
         //c.dispatcher().executorService().awaitTermination(5000, TimeUnit.MILLISECONDS);
-//        try {
-//            azure = Azure.configure()
-//                .authenticate(credentials)
-//                //.authenticate(new TokenCredentials(null, result.getAccessToken()))
-//                .withDefaultSubscription();
-//        } catch (CloudException | IOException e) {
-//            log.error("Exception creating Azure client", e);
-//            throw e;
-//        }
+
     }
 
     @Override
     public boolean probe() {
-
         try {
             channel = SocketChannel.open();
             channel.connect(new InetSocketAddress(
@@ -149,6 +353,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     @Override
     public void execute() {
         log.info("Probe failure.  Executing failure action.");
+        migratePublicIpAddress();
         failures = 0;
 //        try {
 //            // Do something with Azure
