@@ -142,8 +142,13 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             AzureEnvironment.AZURE
         );
         try {
+            CertificateCredentials certificateCredentials = new CertificateCredentials(
+                config.get(CLIENT_ID_SETTING), config.get(TENANT_ID_SETTING),
+                AzureEnvironment.AZURE, this.config
+            );
             azure = Azure.configure()
-                .authenticate(credentials)
+                //.authenticate(credentials)
+                .authenticate(certificateCredentials)
                 .withDefaultSubscription();
         } catch (CloudException | IOException e) {
             log.error("Exception creating Azure client", e);
