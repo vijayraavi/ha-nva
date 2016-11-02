@@ -22,9 +22,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Created by anoakley on 10/31/2016.
- */
 public class CertificateCredentials extends TokenCredentials implements AzureTokenCredentials {
 
     private static final String PATH_TO_KEYSTORE="azure.keyStore";

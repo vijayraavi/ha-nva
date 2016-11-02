@@ -27,13 +27,13 @@
     <orderEntry type="module" module-name="nvadaemon-azure" />
     <orderEntry type="library" name="Maven: com.squareup.retrofit2:retrofit:2.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.squareup.retrofit2:adapter-rxjava:2.1.0" level="project" />
-    <orderEntry type="library" name="Maven: io.reactivex:rxjava:1.1.5" level="project" />
     <orderEntry type="library" name="Maven: com.squareup.retrofit2:converter-jackson:2.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.7.2" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.7.0" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-core:2.7.2" level="project" />
     <orderEntry type="library" name="Maven: com.squareup.okio:okio:1.11.0" level="project" />
     <orderEntry type="library" name="Maven: com.squareup.okhttp3:okhttp:3.4.1" level="project" />
+    <orderEntry type="library" name="Maven: io.reactivex:rxjava:1.2.1" level="project" />
     <orderEntry type="library" name="Maven: com.microsoft.azure:azure:1.0.0-beta4-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: com.microsoft.azure:azure-client-runtime:1.0.0-beta4-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: com.microsoft.rest:client-runtime:1.0.0-beta4-SNAPSHOT" level="project" />
