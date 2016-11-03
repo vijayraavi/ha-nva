@@ -116,7 +116,8 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         for (int i = 0; i < networkConfigurations.size(); i++) {
             // See if we can do this without getting each interface.
             NetworkInterface routeNetworkInterface = azure.networkInterfaces()
-                .getByGroup(resourceGroupName,
+                .getById(
+                //.getByGroup(resourceGroupName,
                     networkConfigurations.get(i).getRouteNetworkInterface());
             if (privateIpAddress.equals(routeNetworkInterface.primaryPrivateIp())) {
                 return i;
@@ -170,7 +171,8 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             // they are valid.  If not, we need to throw an exception.
             String probeNetworkInterfaceName = this.config.get(prefix + ".probeNetworkInterface");
             NetworkInterface probeNetworkInterface = this.azure.networkInterfaces()
-                .getByGroup(this.config.get(AZURE_RESOURCE_GROUP), probeNetworkInterfaceName);
+                .getById(probeNetworkInterfaceName);
+                //.getByGroup(this.config.get(AZURE_RESOURCE_GROUP), probeNetworkInterfaceName);
             if (probeNetworkInterface == null) {
                 throw new IllegalArgumentException("probeNetworkInterface " +
                     probeNetworkInterfaceName + " was not found");
@@ -225,7 +227,8 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         if ((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
             (this.operatingMode == OperatingMode.ONLY_PIP)) {
             PublicIpAddress publicIpAddress =
-                azure.publicIpAddresses().getByGroup(resourceGroupName, pipName);
+                azure.publicIpAddresses().getById(pipName);
+                //azure.publicIpAddresses().getByGroup(resourceGroupName, pipName);
             if (publicIpAddress == null) {
                 throw new IllegalArgumentException("Invalid PublicIpAddress name: " + pipName);
             }
@@ -239,11 +242,12 @@ public class AzureProbeMonitor implements ScheduledMonitor {
                 publicIpAddress.getAssignedNetworkInterfaceIpConfiguration();
 
             NetworkInterface networkInterface = nicIpConfiguration.parent();
-            log.debug("NetworkInterface: " + networkInterface.name() + " PublicIpAddress: " + pipName);
+            log.debug("NetworkInterface: " + networkInterface.id() + " PublicIpAddress: " + pipName);
             //currentNetworkInterfaceIndex = networkInterfaces.indexOf(networkInterface.name());
-            pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(networkInterface.name());
+            //pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(networkInterface.name());
+            pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(networkInterface.id());
             if (pipNetworkInterfaceIndex == -1) {
-                throw new IllegalArgumentException("NetworkInterface " + networkInterface.name() +
+                throw new IllegalArgumentException("NetworkInterface " + networkInterface.id() +
                     " was not found in the list of valid network interfaces");
             }
 
@@ -254,7 +258,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 
         if ((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
             (this.operatingMode == OperatingMode.ONLY_ROUTE)) {
-            RouteTable routeTable = azure.routeTables().getByGroup(resourceGroupName,
+            RouteTable routeTable = azure.routeTables().getById(//azure.routeTables().getByGroup(resourceGroupName,
                 routeTableName);
             if (routeTable == null) {
                 throw new IllegalArgumentException("Invalid RouteTable name: " + routeTableName);
@@ -267,7 +271,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 
             routeNetworkInterfaceIndex = indexOfRouteNetworkInterface(route.nextHopIpAddress());
             if (routeNetworkInterfaceIndex == -1) {
-                throw new IllegalArgumentException("NetworkInterface for route " + route.name() +
+                throw new IllegalArgumentException("NetworkInterface for route " + route.inner().id() +
                     " was not found in the list of valid network interfaces");
             }
 
@@ -310,8 +314,10 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         NetworkInterface toNetworkInterface = null;
 
         log.debug("Getting network interface " + fromNvaNetworkConfig.getRouteNetworkInterface());
-        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
-            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getRouteNetworkInterface());
+        fromNetworkInterface = this.azure.networkInterfaces().getById(
+            fromNvaNetworkConfig.getRouteNetworkInterface());
+//        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
+//            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getRouteNetworkInterface());
         log.debug("Got network interface " + fromNvaNetworkConfig.getRouteNetworkInterface());
 
         if (fromNetworkInterface == null) {
@@ -320,8 +326,10 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         }
 
         log.debug("Getting network interface " + toNvaNetworkConfig.getRouteNetworkInterface());
-        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
-            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getRouteNetworkInterface());
+        toNetworkInterface = this.azure.networkInterfaces().getById(
+            toNvaNetworkConfig.getRouteNetworkInterface());
+//        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
+//            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getRouteNetworkInterface());
         log.debug("Got network interface " + toNvaNetworkConfig.getRouteNetworkInterface());
         if (toNetworkInterface == null) {
             throw new IllegalArgumentException("Error getting to network interface: " +
@@ -348,8 +356,10 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         NetworkInterface toNetworkInterface = null;
 
         log.debug("Getting network interface " + fromNvaNetworkConfig.getPublicIpNetworkInterface());
-        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
-            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getPublicIpNetworkInterface());
+        fromNetworkInterface = this.azure.networkInterfaces().getById(
+            fromNvaNetworkConfig.getPublicIpNetworkInterface());
+//        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
+//            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getPublicIpNetworkInterface());
         log.debug("Got network interface " + fromNvaNetworkConfig.getPublicIpNetworkInterface());
 
         if (fromNetworkInterface == null) {
@@ -358,26 +368,28 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         }
 
         log.debug("Getting network interface " + toNvaNetworkConfig.getPublicIpNetworkInterface());
-        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
-            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getPublicIpNetworkInterface());
+        toNetworkInterface = this.azure.networkInterfaces().getById(
+            toNvaNetworkConfig.getPublicIpNetworkInterface());
+//        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
+//            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getPublicIpNetworkInterface());
         log.debug("Got network interface " + toNvaNetworkConfig.getPublicIpNetworkInterface());
         if (toNetworkInterface == null) {
             throw new IllegalArgumentException("Error getting to network interface: " +
                 toNvaNetworkConfig.getPublicIpNetworkInterface());
         }
 
-        log.debug("Removing public ip address from network interface " + fromNetworkInterface.name());
+        log.debug("Removing public ip address from network interface " + fromNetworkInterface.id());
         // Swap the pip
         fromNetworkInterface.update()
             .withoutPrimaryPublicIpAddress()
             .apply();
-        log.debug("Public ip address removed from network interface " + fromNetworkInterface.name());
+        log.debug("Public ip address removed from network interface " + fromNetworkInterface.id());
 
-        log.debug("Adding public ip address to network interface " + toNetworkInterface.name());
+        log.debug("Adding public ip address to network interface " + toNetworkInterface.id());
         toNetworkInterface.update()
             .withExistingPrimaryPublicIpAddress(this.publicIpAddress)
             .apply();
-        log.debug("Added public ip address to network interface " + toNetworkInterface.name());
+        log.debug("Added public ip address to network interface " + toNetworkInterface.id());
     }
 
     @Override
@@ -422,9 +434,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             NvaNetworkConfig currentNvaConfig = this.networkConfigurations.get(this.currentNvaIndex);
             channel = SocketChannel.open();
             channel.connect(new InetSocketAddress(
-                currentNvaConfig.getProbeNetworkInterfacePrivateIpAddress(),
-                new Integer(this.config.get(PROBE_PORT))));
-                //this.config.get(PROBE_IP_ADDRESS), new Integer(this.config.get(PROBE_PORT))));
+                //currentNvaConfig.getProbeNetworkInterfacePrivateIpAddress(),
+                //new Integer(this.config.get(PROBE_PORT))));
+                this.config.get(PROBE_IP_ADDRESS), new Integer(this.config.get(PROBE_PORT))));
             channel.close();
             // If this works, we want to reset any previous failures.
             failures = 0;
