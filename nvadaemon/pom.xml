@@ -67,6 +67,7 @@
                 <configuration>
                     <mainClass>com.microsoft.azure.practices.nvadaemon.Main</mainClass>
                     <commandlineArgs>-config ${env.USERPROFILE}/nvadaemon.cfg</commandlineArgs>
+                    <daemonThreadJoinTimeout>0</daemonThreadJoinTimeout>
                     <systemProperties>
                         <systemProperty>
                             <key>log4j.configuration</key>
