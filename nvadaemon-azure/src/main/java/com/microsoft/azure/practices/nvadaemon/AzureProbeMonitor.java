@@ -434,9 +434,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             NvaNetworkConfig currentNvaConfig = this.networkConfigurations.get(this.currentNvaIndex);
             channel = SocketChannel.open();
             channel.connect(new InetSocketAddress(
-                //currentNvaConfig.getProbeNetworkInterfacePrivateIpAddress(),
-                //new Integer(this.config.get(PROBE_PORT))));
-                this.config.get(PROBE_IP_ADDRESS), new Integer(this.config.get(PROBE_PORT))));
+                currentNvaConfig.getProbeNetworkInterfacePrivateIpAddress(),
+                new Integer(this.config.get(PROBE_PORT))));
+                //this.config.get(PROBE_IP_ADDRESS), new Integer(this.config.get(PROBE_PORT))));
             channel.close();
             // If this works, we want to reset any previous failures.
             failures = 0;
