@@ -4,11 +4,9 @@ import com.google.common.base.Preconditions;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.CloudException;
 import com.microsoft.azure.RestClient;
-import com.microsoft.azure.credentials.ApplicationTokenCredentials;
-import com.microsoft.azure.credentials.AzureTokenCredentials;
 import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.management.network.*;
-import com.microsoft.azure.practices.monitor.ScheduledMonitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.ScheduledMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,12 +25,15 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     private static final String CLIENT_SECRET_SETTING="azure.clientSecret";
     private static final String PROBE_IP_ADDRESS="probe.ipAddress";
     private static final String PROBE_PORT="probe.port";
-
-    private static final String AZURE_RESOURCE_GROUP="probe.resourceGroup";
+    private static final String PROBE_POLLING_INTERVAL="probe.pollingIntervalMs";
+    private static final String NUMBER_OF_FAILURES_THRESHOLD="probe.numberOfFailuresThreshold";
     private static final String NVA_PUBLIC_IP_ADDRESS="probe.publicIpAddress";
     private static final String NVA_ROUTE_TABLE="probe.routeTable";
     private static final String NVA_ROUTE_TABLE_ROUTE="probe.routeTableRoute";
     private final ArrayList<NvaNetworkConfig> networkConfigurations = new ArrayList<>();
+
+    private static int DEFAULT_NUMBER_OF_FAILURES_THRESHOLD = 3;
+    private static int DEFAULT_PROBE_POLLING_INTERVAL = 3000;
 
     private int failures;
     private Map<String, String> config;
@@ -44,6 +45,8 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     private PublicIpAddress publicIpAddress = null;
     private RouteTable routeTable = null;
     private OperatingMode operatingMode;
+    private int probePollingInterval;
+    private int numberofFailuresThreshold;
 
     private static final class NvaNetworkConfig {
         private String publicIpNetworkInterface;
@@ -112,7 +115,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 
     private int indexOfRouteNetworkInterface(String privateIpAddress) {
         Preconditions.checkNotNull(privateIpAddress, "privateIpAddress cannot be null");
-        String resourceGroupName = this.config.get(AZURE_RESOURCE_GROUP);
         for (int i = 0; i < networkConfigurations.size(); i++) {
             // See if we can do this without getting each interface.
             NetworkInterface routeNetworkInterface = azure.networkInterfaces()
@@ -150,6 +152,34 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     }
 
     private void readConfiguration() {
+
+        this.numberofFailuresThreshold = DEFAULT_NUMBER_OF_FAILURES_THRESHOLD;
+        if (this.config.containsKey(NUMBER_OF_FAILURES_THRESHOLD)) {
+            try {
+                String value = this.config.get(NUMBER_OF_FAILURES_THRESHOLD);
+                Integer integerValue = new Integer(value);
+                this.numberofFailuresThreshold = integerValue.intValue();
+            } catch (NumberFormatException e) {
+                log.warn("Invalid value for " + NUMBER_OF_FAILURES_THRESHOLD + ": " +
+                    this.config.get(NUMBER_OF_FAILURES_THRESHOLD), e);
+                log.info("Using default value for " + NUMBER_OF_FAILURES_THRESHOLD + ": " +
+                    DEFAULT_NUMBER_OF_FAILURES_THRESHOLD);
+            }
+        }
+
+        this.probePollingInterval = DEFAULT_PROBE_POLLING_INTERVAL;
+        if (this.config.containsKey(PROBE_POLLING_INTERVAL)) {
+            try {
+                String value = this.config.get(PROBE_POLLING_INTERVAL);
+                Integer integerValue = new Integer(value);
+                this.probePollingInterval = integerValue.intValue();
+            } catch (NumberFormatException e) {
+                log.warn("Invalid value for " + PROBE_POLLING_INTERVAL + ": " +
+                    this.config.get(PROBE_POLLING_INTERVAL), e);
+                log.info("Using default value for " + PROBE_POLLING_INTERVAL + ": " +
+                    DEFAULT_PROBE_POLLING_INTERVAL);
+            }
+        }
 
         ArrayList<String> prefixes = new ArrayList<>();
         for (String key : this.config.keySet()) {
@@ -198,11 +228,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
                 config.get(CLIENT_ID_SETTING), config.get(TENANT_ID_SETTING),
                 AzureEnvironment.AZURE, this.config
             );
-            // Attempt to work around the threading problem in okio
-//            azure = Azure.configure()
-//                //.authenticate(credentials)
-//                .authenticate(certificateCredentials)
-//                .withDefaultSubscription();
             this.restClient = certificateCredentials
                 .getEnvironment()
                 .newRestClientBuilder()
@@ -220,15 +245,12 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         // We need to find out the current setup of the NVAs
         int pipNetworkInterfaceIndex = -1;
         int routeNetworkInterfaceIndex = -1;
-        String resourceGroupName = this.config.get(AZURE_RESOURCE_GROUP);
         String pipName = this.config.get(NVA_PUBLIC_IP_ADDRESS);
         String routeTableName = this.config.get(NVA_ROUTE_TABLE);
         String routeName = this.config.get(NVA_ROUTE_TABLE_ROUTE);
         if ((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
             (this.operatingMode == OperatingMode.ONLY_PIP)) {
-            PublicIpAddress publicIpAddress =
-                azure.publicIpAddresses().getById(pipName);
-                //azure.publicIpAddresses().getByGroup(resourceGroupName, pipName);
+            PublicIpAddress publicIpAddress = azure.publicIpAddresses().getById(pipName);
             if (publicIpAddress == null) {
                 throw new IllegalArgumentException("Invalid PublicIpAddress name: " + pipName);
             }
@@ -243,8 +265,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 
             NetworkInterface networkInterface = nicIpConfiguration.parent();
             log.debug("NetworkInterface: " + networkInterface.id() + " PublicIpAddress: " + pipName);
-            //currentNetworkInterfaceIndex = networkInterfaces.indexOf(networkInterface.name());
-            //pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(networkInterface.name());
             pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(networkInterface.id());
             if (pipNetworkInterfaceIndex == -1) {
                 throw new IllegalArgumentException("NetworkInterface " + networkInterface.id() +
@@ -316,8 +336,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         log.debug("Getting network interface " + fromNvaNetworkConfig.getRouteNetworkInterface());
         fromNetworkInterface = this.azure.networkInterfaces().getById(
             fromNvaNetworkConfig.getRouteNetworkInterface());
-//        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
-//            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getRouteNetworkInterface());
         log.debug("Got network interface " + fromNvaNetworkConfig.getRouteNetworkInterface());
 
         if (fromNetworkInterface == null) {
@@ -328,8 +346,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         log.debug("Getting network interface " + toNvaNetworkConfig.getRouteNetworkInterface());
         toNetworkInterface = this.azure.networkInterfaces().getById(
             toNvaNetworkConfig.getRouteNetworkInterface());
-//        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
-//            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getRouteNetworkInterface());
         log.debug("Got network interface " + toNvaNetworkConfig.getRouteNetworkInterface());
         if (toNetworkInterface == null) {
             throw new IllegalArgumentException("Error getting to network interface: " +
@@ -358,8 +374,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         log.debug("Getting network interface " + fromNvaNetworkConfig.getPublicIpNetworkInterface());
         fromNetworkInterface = this.azure.networkInterfaces().getById(
             fromNvaNetworkConfig.getPublicIpNetworkInterface());
-//        fromNetworkInterface = this.azure.networkInterfaces().getByGroup(
-//            this.config.get(AZURE_RESOURCE_GROUP), fromNvaNetworkConfig.getPublicIpNetworkInterface());
         log.debug("Got network interface " + fromNvaNetworkConfig.getPublicIpNetworkInterface());
 
         if (fromNetworkInterface == null) {
@@ -370,8 +384,6 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         log.debug("Getting network interface " + toNvaNetworkConfig.getPublicIpNetworkInterface());
         toNetworkInterface = this.azure.networkInterfaces().getById(
             toNvaNetworkConfig.getPublicIpNetworkInterface());
-//        toNetworkInterface = this.azure.networkInterfaces().getByGroup(
-//            this.config.get(AZURE_RESOURCE_GROUP), toNvaNetworkConfig.getPublicIpNetworkInterface());
         log.debug("Got network interface " + toNvaNetworkConfig.getPublicIpNetworkInterface());
         if (toNetworkInterface == null) {
             throw new IllegalArgumentException("Error getting to network interface: " +
@@ -399,33 +411,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         failures = 0;
         initializeAzure();
         readConfiguration();
-        //getCurrent();
         getCurrentNva();
-//        // See if it's okhttp
-//        // It's okhttp.  If we wait six minutes, shutting down the daemon will
-//        // hang for at least 15 seconds (that's when exec:java terminates the main
-//        // thread).  But if we wait six minutes and ONE second, it shuts down
-//        // properly....awesome.
-//        okhttp3.OkHttpClient c = new okhttp3.OkHttpClient.Builder().build();
-//        okhttp3.Response response = c.newCall(new okhttp3.Request.Builder()
-//            .get().url("http://www.bing.com").build()).execute();
-//        response.close();
-
-//        Field executor = okhttp3.ConnectionPool.class.getDeclaredField("executor");
-//        executor.setAccessible(true);
-//        Executor ex = (Executor)executor.get(null);
-//        ExecutorService exs = (ExecutorService)ex;
-//        exs.shutdownNow();
-//        Field modifier = Field.class.getDeclaredField("modifier");
-//        modifier.setAccessible(true);
-        //modifier.setInt(executor, executor.getModifiers() & ~Modifier.FINAL);
-
-        //response.body().string();
-        //response.body().close();
-//        c.dispatcher().executorService().shutdown();
-//        c.connectionPool().evictAll();
-        //c.dispatcher().executorService().awaitTermination(5000, TimeUnit.MILLISECONDS);
-
     }
 
     @Override
@@ -445,7 +431,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             failures++;
         }
 
-        return failures < 3;
+        return failures < this.numberofFailuresThreshold;
     }
 
     @Override
@@ -453,24 +439,11 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         log.info("Probe failure.  Executing failure action.");
         migrateAzureResources();
         failures = 0;
-//        try {
-//            // Do something with Azure
-//            PagedList<ResourceGroup> resourceGroups = azure.resourceGroups().list();
-//            resourceGroups.loadAll();
-//            for (ResourceGroup resourceGroup : resourceGroups) {
-//                log.debug("Resource group: " + resourceGroup);
-//            }
-//        } catch (CloudException | IOException e) {
-//            log.error("Error executing Azure call", e);
-//        }
-//////        } catch (InterruptedException e) {
-//////            log.error("Long running execute interrupted");
-//////        }
     }
 
     @Override
     public int getTime() {
-        return 3000;
+        return this.probePollingInterval;
     }
 
     @Override
@@ -480,8 +453,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 
     @Override
     public void close() throws IOException {
-        // This is needed to work around an okio threading issue.  If we don't do this, it will take
-        // approximately six minutes for okio to shutdown the idle connection thread.  By shutting it
+        // This is needed to work around an okio threading issue.  By shutting it
         // down manually here, it only takes one minute for okio to shutdown the idle connection thread.
         restClient.httpClient().dispatcher().executorService().shutdown();
         try {
@@ -496,6 +468,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             }
         } catch (InterruptedException e) {
             log.debug("AzureProbeMonitor.close() interrupted");
+            Thread.currentThread().interrupt();
         }
 
         restClient.httpClient().connectionPool().evictAll();

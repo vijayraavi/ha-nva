@@ -64,7 +64,7 @@
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.practices</groupId>
-            <artifactId>nvadaemon-chain</artifactId>
+            <artifactId>nvadaemon</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>

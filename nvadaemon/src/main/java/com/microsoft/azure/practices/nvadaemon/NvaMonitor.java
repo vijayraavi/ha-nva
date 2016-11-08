@@ -1,8 +1,8 @@
 package com.microsoft.azure.practices.nvadaemon;
 
 import com.google.common.base.Preconditions;
-import com.microsoft.azure.practices.monitor.Monitor;
-import com.microsoft.azure.practices.monitor.ScheduledMonitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.Monitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.ScheduledMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 

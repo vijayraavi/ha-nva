@@ -1,4 +1,4 @@
-package com.microsoft.azure.practices.monitor;
+package com.microsoft.azure.practices.nvadaemon.monitor;
 
 import java.io.Closeable;
 import java.util.Map;

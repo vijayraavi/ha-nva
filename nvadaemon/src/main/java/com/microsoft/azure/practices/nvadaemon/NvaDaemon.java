@@ -26,19 +26,17 @@ public class NvaDaemon implements Daemon {
     private ReentrantLock lock = new ReentrantLock();
     private Condition shutdown = lock.newCondition();
 
-    private final ExecutorService executorService;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final AtomicReference<Future<?>> ourTask = new AtomicReference<>(null);
 
     public NvaDaemon() {
-        this.executorService =
-            Executors.newSingleThreadExecutor();
     }
 
     private void createClient(NvaDaemonConfig config) throws InterruptedException {
         log.debug("Creating CuratorFramework");
         client = CuratorFrameworkFactory.builder()
             .connectString(config.getConnectionString())
-            .retryPolicy(new ExponentialBackoffRetry(1000, 10))
+            .retryPolicy(new ExponentialBackoffRetry(config.getRetrySleepTime(), config.getNumberOfRetries()))
             .namespace(ZK_NAMESPACE)
             .build();
         log.debug("Starting CuratorFramework");
@@ -67,6 +65,11 @@ public class NvaDaemon implements Daemon {
     }
 
     private synchronized void internalStart() {
+        if (ourTask.get() != null) {
+            log.warn("internalStart called more than once");
+            return;
+        }
+
         Future<Void> task = executorService.submit(new Callable<Void>() {
             @Override
             public Void call() throws Exception {
@@ -116,28 +119,17 @@ public class NvaDaemon implements Daemon {
             lock.unlock();
         }
         try {
-            log.debug("Joining daemon thread");
-//            Future<?> task = ourTask.get();
-//            if (task != null) {
-//                log.debug("Waiting for task completion");
-//                task.get();
-//                log.debug("Task completed");
-//                ourTask.set(null);
-//            }
+            log.debug("Shutting down executorService");
             executorService.shutdown();
-            executorService.awaitTermination(10000, TimeUnit.MILLISECONDS);
+            // If this times out, force a shutdown.
+            if (!executorService.awaitTermination(this.config.getDaemonShutdownAwaitTime(), TimeUnit.MILLISECONDS)) {
+                executorService.shutdownNow();
+            }
         } catch (InterruptedException e) {
             log.warn("Interrupted joining daemon thread: " + e.getMessage());
             Thread.currentThread().interrupt();
-        //} catch (Exception e) {
-        //    log.warn("Exception in daemon thread", e);
         } finally {
             log.debug("Closing CuratorFramework");
-//            try {
-//                Thread.sleep(10000);
-//            } catch (InterruptedException e) {
-//                log.warn("Sleeping interrupted");
-//            }
             client.close();
             log.debug("CuratorFramework closed");
         }
@@ -147,5 +139,6 @@ public class NvaDaemon implements Daemon {
 
     @Override
     public void destroy() {
+        ourTask.set(null);
     }
 }
