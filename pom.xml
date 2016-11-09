@@ -12,5 +12,6 @@
         <module>nvadaemon-chain</module>
         <module>nvadaemon</module>
         <module>nvadaemon-azure</module>
+        <module>nvadaemon-assembly</module>
     </modules>
 </project>

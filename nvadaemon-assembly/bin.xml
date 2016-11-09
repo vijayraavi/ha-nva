@@ -1,0 +1,35 @@
+<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.3 http://maven.apache.org/xsd/assembly-1.1.3.xsd">
+    <id>bin</id>
+    <formats>
+        <format>dir</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <!--<moduleSets>-->
+        <!--<moduleSet>-->
+
+            <!--&lt;!&ndash; Enable access to all projects in the current multimodule build! &ndash;&gt;-->
+            <!--<useAllReactorProjects>true</useAllReactorProjects>-->
+
+            <!--&lt;!&ndash; Now, select which projects to include in this module-set. &ndash;&gt;-->
+            <!--<includes>-->
+                <!--<include>com.microsoft.azure.practices:*</include>-->
+            <!--</includes>-->
+            <!--<binaries>-->
+                <!--<outputDirectory>modules/maven-assembly-plugin</outputDirectory>-->
+                <!--<unpack>false</unpack>-->
+            <!--</binaries>-->
+        <!--</moduleSet>-->
+    <!--</moduleSets>-->
+    <dependencySets>
+        <dependencySet>
+            <scope>runtime</scope>
+            <useProjectArtifact>false</useProjectArtifact>
+            <!--<excludes>-->
+                <!--<exclude>com.microsoft.azure.practices:nvadaemon-assembly</exclude>-->
+            <!--</excludes>-->
+            <!--<outputDirectory>/target</outputDirectory>-->
+        </dependencySet>
+    </dependencySets>
+</assembly>
