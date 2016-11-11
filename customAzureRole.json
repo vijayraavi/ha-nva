@@ -1,6 +1,5 @@
 {
   "Name": "NVA Operator",
-  "Id": "6dff8a28-bcd7-484e-b2b6-e5658b5210c2",
   "IsCustom": true,
   "Description": "Can change PublicIpAddress assignment and update RouteTables",
   "Actions": [
