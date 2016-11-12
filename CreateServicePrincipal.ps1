@@ -1,24 +1,26 @@
 ﻿param(
-  [Parameter(Mandatory=$true)]
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$true)]
   $Subject,
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$true)]
+  [System.Uri]$HomePageUri,
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$true)]
+  [System.Uri]$IdentifierUri,
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$true)]
+  $DisplayName,
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$true)]
+  $SubscriptionId,
+  [Parameter(ParameterSetName="CreateServicePrincipal", Mandatory=$false)]
+  $RoleDefinitionFile = "customAzureRole.json",
   [Parameter(Mandatory=$true)]
   $CertificatePassword,
-  [Parameter(Mandatory=$true)]
-  [System.Uri]$HomePageUri,
-  [Parameter(Mandatory=$true)]
-  [System.Uri]$IdentifierUri,
-  [Parameter(Mandatory=$true)]
-  $DisplayName,
-  [Parameter(Mandatory=$true)]
-  $SubscriptionId,
-  [Parameter(Mandatory=$false)]
-  $RoleDefinitionFile,
   [Parameter(Mandatory=$true)]
   $PathToJdk,
   [Parameter(Mandatory=$true)]
   $OutputKeystoreFile,
   [Parameter(Mandatory=$true)]
-  $KeystorePassword
+  $KeystorePassword,
+  [Parameter(ParameterSetName="GenerateKeyStore", Mandatory=$true)]
+  $CertificateFile
 )
 
 $keytoolPath = [System.IO.Path]::Combine($PathToJdk, "bin\keytool.exe")
@@ -39,29 +41,56 @@ if ([System.IO.File]::Exists($OutputKeystoreFile))
   throw "Output keystore file already exists:  $OutputKeystoreFile"
 }
 
-$certificateFilename = [System.IO.Path]::Combine($PSScriptRoot, "$DisplayName.pfx")
-if ([System.IO.File]::Exists($certificateFilename))
+switch ($PSCmdlet.ParameterSetName)
 {
-  throw "Output certificate file already exists: $certificateFilename"
+    "CreateServicePrincipal" { $certificateFilename = [System.IO.Path]::Combine($PSScriptRoot, "$DisplayName.pfx") }
+    "GenerateKeyStore" {
+        $certificateFilename = $CertificateFile
+        if ($certificateFilename -eq ([System.IO.Path]::GetFileName($certificateFilename)))
+        {
+            $certificateFilename = [System.IO.Path]::Combine($PSScriptRoot, $certificateFilename)
+        }
+    }
 }
 
-if ([System.String]::IsNullOrWhiteSpace($RoleDefinitionFile))
+if ($PSCmdlet.ParameterSetName -eq "CreateServicePrincipal")
 {
-  $RoleDefinitionFile = [System.IO.Path]::Combine($PSScriptRoot, "customAzureRole.json")
+    if ([System.IO.File]::Exists($certificateFilename))
+    {
+      throw "Output certificate file already exists: $certificateFilename"
+    }
+
+    if ($RoleDefinitionFile -eq ([System.IO.Path]::GetFileName($RoleDefinitionFile)))
+    {
+        $RoleDefinitionFile = [System.IO.Path]::Combine($PSScriptRoot, $RoleDefinitionFile)
+    }
+
+    if (-not [System.IO.File]::Exists($RoleDefinitionFile))
+    {
+      throw "Role definition file does not exist: $RoleDefinitionFile"
+    }
+
+    $password = ConvertTo-SecureString -String $CertificatePassword -AsPlainText -Force
+    $certificate = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=$Subject" -KeySpec KeyExchange
+    Export-PfxCertificate -Cert $certificate -FilePath $certificateFilename -Password $password | Out-Null
+
+    $keyValue = [System.Convert]::ToBase64String($certificate.GetRawCertData())
+    Login-AzureRmAccount -SubscriptionId $SubscriptionId
+    $application = New-AzureRmADApplication -DisplayName $DisplayName -HomePage $HomePageUri.AbsoluteUri `
+        -IdentifierUris $identifierUri.AbsoluteUri -CertValue $keyValue -EndDate $cert.NotAfter -StartDate $cert.NotBefore
+    $servicePrincipal = New-AzureRmADServicePrincipal -ApplicationId $application.ApplicationId
+    $roleDefinition = New-AzureRmRoleDefinition -InputFile $RoleDefinitionFile
+    $roleAssignment = New-AzureRmRoleAssignment -RoleDefinitionName $roleDefinition.Name `
+        -ServicePrincipalName $application.ApplicationId.Guid
 }
-
-$password = ConvertTo-SecureString -String $CertificatePassword -AsPlainText -Force
-$certificate = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=$Subject" -KeySpec KeyExchange
-Export-PfxCertificate -Cert $certificate -FilePath $certificateFilename -Password $password
-
-$keyValue = [System.Convert]::ToBase64String($certificate.GetRawCertData())
-Login-AzureRmAccount -SubscriptionId $SubscriptionId
-$application = New-AzureRmADApplication -DisplayName $DisplayName -HomePage $HomePageUri.AbsoluteUri `
-  -IdentifierUris $identifierUri.AbsoluteUri -CertValue $keyValue -EndDate $cert.NotAfter -StartDate $cert.NotBefore
-$servicePrincipal = New-AzureRmADServicePrincipal -ApplicationId $application.ApplicationId
-$roleDefinition = New-AzureRmRoleDefinition -InputFile $RoleDefinitionFile
-$roleAssignment = New-AzureRmRoleAssignment -RoleDefinitionName $roleDefinition.Name `
-  -ServicePrincipalName $application.ApplicationId.Guid
+elseif ($PSCmdlet.ParameterSetName -eq "GenerateKeyStore")
+{
+    # We are just building the keystore file, so we need to make sure the certificate file exists
+    if (-not [System.IO.File]::Exists($certificateFilename))
+    {
+      throw "Input certificate file does not exist: $certificateFilename"
+    }
+}
 
 # Build the Java keystore file
 $keytoolArguments = "-importkeystore -srckeystore `"$certificateFilename`" -srcstoretype pkcs12 -srcstorepass $CertificatePassword -destkeystore `"$OutputKeystoreFile`" -deststoretype JKS -deststorepass $KeystorePassword"
