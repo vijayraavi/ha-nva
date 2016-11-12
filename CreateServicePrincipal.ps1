@@ -54,14 +54,6 @@ $password = ConvertTo-SecureString -String $CertificatePassword -AsPlainText -Fo
 $certificate = New-SelfSignedCertificate -CertStoreLocation "cert:\CurrentUser\My" -Subject "CN=$Subject" -KeySpec KeyExchange
 Export-PfxCertificate -Cert $certificate -FilePath $certificateFilename -Password $password
 
-$keytoolCommand = "-importkeystore -srckeystore `"$certificateFilename`" -srcstoretype pkcs12 -srcstorepass $CertificatePassword -destkeystore `"$OutputKeystoreFile`" -deststoretype JKS -deststorepass $KeystorePassword"
-#$keytoolCommand = "`"$keytoolPath`" -importkeystore"
-$output = Invoke-Expression "& `"$keytoolPath`" $keytoolCommand 2>`$null"
-if ($LASTEXITCODE -ne 0)
-{
-  throw "Error invoking keytool: $output"
-}
-
 $keyValue = [System.Convert]::ToBase64String($certificate.GetRawCertData())
 Login-AzureRmAccount -SubscriptionId $SubscriptionId
 $application = New-AzureRmADApplication -DisplayName $DisplayName -HomePage $HomePageUri.AbsoluteUri `
@@ -72,3 +64,32 @@ $roleAssignment = New-AzureRmRoleAssignment -RoleDefinitionName $roleDefinition.
   -ServicePrincipalName $application.ApplicationId.Guid
 
 # Build the Java keystore file
+$keytoolArguments = "-importkeystore -srckeystore `"$certificateFilename`" -srcstoretype pkcs12 -srcstorepass $CertificatePassword -destkeystore `"$OutputKeystoreFile`" -deststoretype JKS -deststorepass $KeystorePassword"
+$output = ""
+
+# We need to do all of this work because of the way PowerShell interacts with keytool.
+Invoke-Expression "& `"$keytoolPath`" $keytoolArguments 2>`&1" | % { 
+  if ($_ -is [System.Management.Automation.ErrorRecord]) {
+    $record = $_ -as [System.Management.Automation.ErrorRecord]
+    if ($record.FullyQualifiedErrorId -eq "NativeCommandError")
+    {
+      $output += $record.Exception.Message + [System.Environment]::NewLine + [System.Environment]::NewLine
+    }
+    else
+    {
+      $output += $record.Exception.Message
+    }
+  }
+}
+
+if ($LASTEXITCODE -eq 0)
+{
+  Write-Host $output
+}
+else
+{
+  # We aren't going to use throw here, but simply write out the error and exit.
+  Write-Error "Error invoking keytool"
+  Write-Error $output
+  Exit(1)
+}
