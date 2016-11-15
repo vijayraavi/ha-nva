@@ -20,10 +20,9 @@ import java.util.concurrent.TimeUnit;
 public class AzureProbeMonitor implements ScheduledMonitor {
 
     private final Logger log = LoggerFactory.getLogger(AzureProbeMonitor.class);
+    private static final String SUBSCRIPTION_ID_SETTING="azure.subscriptionId";
     private static final String CLIENT_ID_SETTING="azure.clientId";
     private static final String TENANT_ID_SETTING="azure.tenantId";
-    private static final String CLIENT_SECRET_SETTING="azure.clientSecret";
-    private static final String PROBE_IP_ADDRESS="probe.ipAddress";
     private static final String PROBE_PORT="probe.port";
     private static final String PROBE_POLLING_INTERVAL="probe.pollingIntervalMs";
     private static final String NUMBER_OF_FAILURES_THRESHOLD="probe.numberOfFailuresThreshold";
@@ -151,8 +150,21 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         }
     }
 
-    private void readConfiguration() {
+    private void validateSetting(String settingName) throws IllegalArgumentException {
+        String value = null;
+        if (this.config.containsKey(settingName)) {
+            value = this.config.get(settingName);
+        }
 
+        if ((value == null) || (value.length() == 0)) {
+            throw new IllegalArgumentException("Invalid or missing setting: " + settingName);
+        }
+    }
+
+    private void readConfiguration() {
+        validateSetting(SUBSCRIPTION_ID_SETTING);
+        validateSetting(CLIENT_ID_SETTING);
+        validateSetting(TENANT_ID_SETTING);
         this.numberofFailuresThreshold = DEFAULT_NUMBER_OF_FAILURES_THRESHOLD;
         if (this.config.containsKey(NUMBER_OF_FAILURES_THRESHOLD)) {
             try {
@@ -234,8 +246,8 @@ public class AzureProbeMonitor implements ScheduledMonitor {
                 .withCredentials(certificateCredentials)
                 .build();
             azure = Azure.authenticate(this.restClient, certificateCredentials.getDomain())
-                .withDefaultSubscription();
-        } catch (CloudException | IOException e) {
+                .withSubscription(this.config.get(SUBSCRIPTION_ID_SETTING));
+        } catch (CloudException e) {
             log.error("Exception creating Azure client", e);
             throw e;
         }
@@ -408,9 +420,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     public void init(Map<String, String> config) throws Exception {
         Preconditions.checkNotNull(config, "config cannot be null");
         this.config = config;
+        readConfiguration();
         failures = 0;
         initializeAzure();
-        readConfiguration();
         getCurrentNva();
     }
 

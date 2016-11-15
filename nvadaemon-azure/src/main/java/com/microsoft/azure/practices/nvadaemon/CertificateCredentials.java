@@ -27,7 +27,6 @@ public class CertificateCredentials extends TokenCredentials implements AzureTok
     private static final String PATH_TO_KEYSTORE="azure.keyStore";
     private static final String KEYSTORE_PASSWORD="azure.keyStorePassword";
     private static final String CERTIFICATE_PASSWORD="azure.certificatePassword";
-    private static final String KEYSTORE_ENTRY_ALIAS="azure.keyStoreEntryAlias";
 
     private Map<String, AuthenticationResult> tokens;
     private String clientId;

@@ -1,5 +1,7 @@
 package com.microsoft.azure.practices.nvadaemon;
 
+import com.google.common.base.Preconditions;
+import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonController;
 import org.slf4j.Logger;
@@ -11,18 +13,19 @@ import java.io.InputStreamReader;
 public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-    private void runDaemon(final String[] args) throws Exception {
-        DaemonContext context = new DaemonContext() {
-            public DaemonController getController() {
-                return null;
-            }
+    private void runDaemon(Daemon daemon, DaemonContext context) throws Exception {
+        Preconditions.checkNotNull(daemon, "daemon cannot be null");
+        Preconditions.checkNotNull(context, "context cannot be null");
+//        DaemonContext context = new DaemonContext() {
+//            public DaemonController getController() {
+//                return null;
+//            }
+//
+//            public String[] getArguments() {
+//                return args;
+//            }
+//        };
 
-            public String[] getArguments() {
-                return args;
-            }
-        };
-
-        NvaDaemon daemon = new NvaDaemon();
         try {
             daemon.init(context);
             daemon.start();
@@ -54,7 +57,18 @@ public class Main {
     }
 
     public static void main(final String[] args) throws Exception {
+        DaemonContext context = new DaemonContext() {
+            public DaemonController getController() {
+                return null;
+            }
+
+            public String[] getArguments() {
+                return args;
+            }
+        };
+
+        Daemon daemon = new NvaDaemon();
         Main main = new Main();
-        main.runDaemon(args);
+        main.runDaemon(daemon, context);
     }
 }

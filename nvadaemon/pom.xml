@@ -118,8 +118,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.19</version>
                 <configuration>
+                    <forkCount>0</forkCount>
                     <systemPropertyVariables>
                         <log4j.configuration>file:${project.build.testOutputDirectory}/log4j.properties</log4j.configuration>
+                        <testOutputDirectory>${project.build.testOutputDirectory}</testOutputDirectory>
                     </systemPropertyVariables>
                 </configuration>
                 <dependencies>
