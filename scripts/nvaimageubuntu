@@ -1,0 +1,35 @@
+FROM  ubuntu:16.04
+
+MAINTAINER Patterns Practices
+
+
+ENV ZOO_USER nvauser
+ARG SRC=commit
+ARG DST=/nvabin
+
+RUN set -x \
+    && apt-get update \
+    && apt-get install default-jre -y \
+    && apt-get install wget -y \
+    && apt-get install jsvc -y \
+    && apt-get install sudo -y
+ 
+RUN set -x \
+    && useradd "$ZOO_USER" \
+    && mkdir -p  "$DST" \
+    && chown "$ZOO_USER:$ZOO_USER"  "$DST"
+
+
+COPY "$SRC" "$DST"
+COPY "$SRC/nva-docker-entrypoint.sh" /
+RUN chown -R "$ZOO_USER:$ZOO_USER"  "$DST"
+
+
+ENTRYPOINT ["/nva-docker-entrypoint.sh"]
+#CMD ["/nvadaemon.sh", "start","$DST" ]
+# ENTRYPOINT ["/nvabin/nvadaemon.sh"]
+
+#CMD ["sudo","-u","nvauser","/nvabin/nvadaemon.sh","start","/usr/bin/jsvc","/nvabin","'-config /nvabin/nvadaemon.cfg'","root"]
+CMD ["sudo","-u","nvauser","/nvabin/nvadaemon.sh","start","/usr/bin/jsvc","/nvabin","'-config /nvabin/nvadaemon.cfg'","nvauser"]
+
+
