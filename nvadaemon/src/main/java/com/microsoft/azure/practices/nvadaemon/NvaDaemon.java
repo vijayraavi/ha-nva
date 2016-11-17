@@ -83,10 +83,7 @@ public class NvaDaemon implements Daemon {
                         lock.lock();
                         try {
                             log.debug("Waiting on signal");
-                            shutdown.await();
-                        } catch (InterruptedException e) {
-                            log.warn("lock interrupted", e);
-                            Thread.currentThread().interrupt();
+                            shutdown.awaitUninterruptibly();
                         } finally {
                             lock.unlock();
                         }
@@ -130,7 +127,7 @@ public class NvaDaemon implements Daemon {
             Thread.currentThread().interrupt();
         } finally {
             log.debug("Closing CuratorFramework");
-            client.close();
+            this.client.close();
             log.debug("CuratorFramework closed");
         }
 
