@@ -1,8 +1,8 @@
 package com.microsoft.azure.practices.nvadaemon;
 
 import com.google.common.base.Preconditions;
-import com.microsoft.azure.practices.monitor.Monitor;
-import com.microsoft.azure.practices.monitor.ScheduledMonitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.Monitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.ScheduledMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -19,12 +18,25 @@ public class NvaMonitor implements Closeable {
     private final Logger log = LoggerFactory.getLogger(NvaMonitor.class);
     private final NvaDaemonConfig config;
     private final ExecutorService executorService;
-    private final AtomicReference<Future<?>> ourTask = new AtomicReference<>(null);
+    //private final AtomicReference<Future<?>> ourTask = new AtomicReference<>(null);
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition shutdown = lock.newCondition();
 
     private volatile boolean isRunning = false;
 
+    public final class NvaMonitorException extends Exception {
+        public NvaMonitorException() {
+            super();
+        }
+
+        public NvaMonitorException(String message) {
+            super(message);
+        }
+
+        public NvaMonitorException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
     public NvaMonitor(NvaDaemonConfig config) {
         Preconditions.checkNotNull(config, "config cannot be null");
         this.config = config;
@@ -86,8 +98,8 @@ public class NvaMonitor implements Closeable {
                         lock.unlock();
                     }
                 }
-            } catch (Exception e) {
-                log.error("Exception in monitor: ", e);
+//            } catch (Exception e) {
+//                log.error("Exception in monitor: ", e);
             } finally {
                 monitor.close();
             }
@@ -98,7 +110,7 @@ public class NvaMonitor implements Closeable {
     }
 
     // We probably need a custom exception type.
-    private Callable<Void> createMonitorCallable(String className) throws Exception {
+    private Callable<Void> createMonitorCallable(String className) throws NvaMonitorException {
         Preconditions.checkNotNull(className, "className cannot be null");
         // We are going to assume this is driven by config so we will create it with reflection.
         // We may need to change this later.
@@ -129,25 +141,27 @@ public class NvaMonitor implements Closeable {
         }
 
         if (innerException != null) {
-            throw new Exception("Error creating monitor type: " + className, innerException);
+            throw new NvaMonitorException("Error creating monitor type: " + className, innerException);
         }
 
         return result;
     }
-    public synchronized void start() throws Exception {
+
+    //public synchronized void start() throws Exception {
+    public synchronized Future<Void> start() throws NvaMonitorException {
         Preconditions.checkState(!executorService.isShutdown(), "Already started");
         Callable<Void> monitor =
-            createMonitorCallable("com.microsoft.azure.practices.nvadaemon.ProbeMonitor");
-            //createMonitorCallable(config.getMonitorClass());
+            //createMonitorCallable("com.microsoft.azure.practices.nvadaemon.ProbeMonitor");
+            createMonitorCallable(config.getMonitorClass());
         isRunning = true;
         Future<Void> task = executorService.submit(
             monitor
         );
-        ourTask.set(task);
+        //ourTask.set(task);
+        return task;
     }
 
-    @Override
-    public synchronized void close() throws IOException {
+    public synchronized void stop() {
         log.info("Stopping NvaMonitor task");
         isRunning = false;
         lock.lock();
@@ -158,8 +172,15 @@ public class NvaMonitor implements Closeable {
         } finally {
             lock.unlock();
         }
+    }
 
-        ourTask.set(null);
+    @Override
+    public synchronized void close() throws IOException {
+        if (this.isRunning) {
+            stop();
+        }
+
+        //ourTask.set(null);
         executorService.shutdown();
         try {
             executorService.awaitTermination(10000, TimeUnit.MILLISECONDS);

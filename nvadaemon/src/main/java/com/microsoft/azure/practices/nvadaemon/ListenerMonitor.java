@@ -1,6 +1,6 @@
 package com.microsoft.azure.practices.nvadaemon;
 
-import com.microsoft.azure.practices.monitor.Monitor;
+import com.microsoft.azure.practices.nvadaemon.monitor.Monitor;
 
 import java.io.IOException;
 import java.util.Map;

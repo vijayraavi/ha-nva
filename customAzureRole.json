@@ -1,0 +1,20 @@
+{
+  "Name": "NVA Operator",
+  "IsCustom": true,
+  "Description": "Can change PublicIpAddress assignment and update RouteTables",
+  "Actions": [
+    "Microsoft.Network/networkInterfaces/read",
+    "Microsoft.Network/networkInterfaces/write",
+    "Microsoft.Network/routeTables/read",
+    "Microsoft.Network/routeTables/write",
+    "Microsoft.Network/routeTables/routes/read",
+    "Microsoft.Network/routeTables/routes/write",
+    "Microsoft.Network/publicIPAddresses/read",
+    "Microsoft.Network/virtualNetworks/subnets/join/action",
+    "Microsoft.Network/publicIPAddresses/join/action"
+  ],
+  "NotActions": [
+  ],
+  "AssignableScopes": [
+  ]
+}
