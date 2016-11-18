@@ -83,7 +83,6 @@ public class NvaMonitor implements Closeable {
         @Override
         public Void call() throws Exception {
             log.debug("Starting monitor task");
-            //ScheduledMonitor monitor = new ProbeMonitor2();
             try {
                 monitor.init(config.getAll());
                 while (isRunning) {
@@ -98,8 +97,6 @@ public class NvaMonitor implements Closeable {
                         lock.unlock();
                     }
                 }
-//            } catch (Exception e) {
-//                log.error("Exception in monitor: ", e);
             } finally {
                 monitor.close();
             }
@@ -109,11 +106,8 @@ public class NvaMonitor implements Closeable {
         }
     }
 
-    // We probably need a custom exception type.
     private Callable<Void> createMonitorCallable(String className) throws NvaMonitorException {
         Preconditions.checkNotNull(className, "className cannot be null");
-        // We are going to assume this is driven by config so we will create it with reflection.
-        // We may need to change this later.
         Callable<Void> result = null;
         Exception innerException = null;
         try {
@@ -147,17 +141,14 @@ public class NvaMonitor implements Closeable {
         return result;
     }
 
-    //public synchronized void start() throws Exception {
     public synchronized Future<Void> start() throws NvaMonitorException {
         Preconditions.checkState(!executorService.isShutdown(), "Already started");
-        Callable<Void> monitor =
-            //createMonitorCallable("com.microsoft.azure.practices.nvadaemon.ProbeMonitor");
-            createMonitorCallable(config.getMonitorClass());
+        Callable<Void> monitor = createMonitorCallable(config.getMonitorClass());
         isRunning = true;
         Future<Void> task = executorService.submit(
             monitor
         );
-        //ourTask.set(task);
+
         return task;
     }
 
@@ -180,7 +171,6 @@ public class NvaMonitor implements Closeable {
             stop();
         }
 
-        //ourTask.set(null);
         executorService.shutdown();
         try {
             executorService.awaitTermination(10000, TimeUnit.MILLISECONDS);
