@@ -1,0 +1,32 @@
+FROM  ubuntu:16.04
+
+MAINTAINER Patterns Practices
+
+ENV NVA_USER nvauser
+ARG SRC=commit
+ARG DST=/nvabin
+ENV JAR=${DST}/nva.jar:${DST}/*
+ENV LOG=-Dlog4j.configuration=file:${DST}/log4j.properties
+ENV CLASS=com.microsoft.azure.practices.nvadaemon.Main
+ENV CONFIG=${DST}/nvadaemon.cfg
+
+RUN set -x \
+    && apt-get update \
+    && apt-get install default-jre -y \
+    && apt-get install sudo -y
+ 
+RUN set -x \
+    && useradd "$NVA_USER" \
+    && mkdir -p  "$DST" \
+    && chown "$NVA_USER:$NVA_USER"  "$DST"
+
+COPY "$SRC" "$DST"
+COPY "$SRC/nva-docker-entrypoint.sh" /
+RUN chown -R "$ZOO_USER:$ZOO_USER"  "$DST"
+
+
+ENTRYPOINT ["/nva-docker-entrypoint.sh"]
+CMD ["sudo","-u","java","-cp","-config"]
+
+
+
