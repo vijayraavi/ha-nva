@@ -97,17 +97,7 @@
             "nicIndex": 0
           }
         ],
-        "inboundNatRules": [
-          {
-            "namePrefix": "ssh",
-            "frontendIPConfigurationName": "fe-config1",
-            "startingFrontendPort": 50000,
-            "backendPort": 22,
-            "natRuleType": "All",
-            "protocol": "Tcp",
-            "nicIndex": 0
-          }
-        ]
+        "inboundNatRules": []
       }
     },
     "virtualNetworkSettings": {

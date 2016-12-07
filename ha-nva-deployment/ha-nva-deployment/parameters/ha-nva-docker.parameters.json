@@ -45,7 +45,7 @@
             "typeHandlerVersion": "1.5",
             "autoUpgradeMinorVersion": true,
             "settingsConfig": {
-              "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/extensions/install-docker.sh" ],
+              "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/ha-nva-deployment/extensions/install-docker.sh" ],
               "commandToExecute": "sh install-docker.sh"
             },
             "protectedSettingsConfig": { }
@@ -53,7 +53,7 @@
         ],
         "availabilitySet": {
           "useExistingAvailabilitySet": "No",
-          "name": "ha-nva-zoo-as"
+          "name": "ha-nva-docker-as"
         }
       }
     },

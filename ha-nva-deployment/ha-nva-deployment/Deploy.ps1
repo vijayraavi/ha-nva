@@ -91,6 +91,6 @@ if($Mode -eq "UDR"){
 
 if($Mode -eq "Docker"){
 	Write-Host "Deploying docker vms..."
-	New-AzureRmResourceGroupDeployment -Name "ra-docker-vms-deployment" -ResourceGroupName $networkResourceGroup.ResourceGroupName `
+	New-AzureRmResourceGroupDeployment -Name "ra-docker11-deployment" -ResourceGroupName $networkResourceGroup.ResourceGroupName `
 		-TemplateUri $multiVMsTemplate.AbsoluteUri -TemplateParameterFile $dockerParametersFile
 }

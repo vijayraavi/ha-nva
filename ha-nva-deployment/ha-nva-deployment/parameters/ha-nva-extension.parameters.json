@@ -15,7 +15,7 @@
               "typeHandlerVersion": "1.5",
               "autoUpgradeMinorVersion": true,
               "settingsConfig": {
-                "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/extensions/configure-ufw.sh" ],
+                "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/ha-nva-deployment/extensions/configure-ufw.sh" ],
                 "commandToExecute": "sh configure-ufw.sh 1.1.1.1 10.0.1.100"
               },
               "protectedSettingsConfig": {}

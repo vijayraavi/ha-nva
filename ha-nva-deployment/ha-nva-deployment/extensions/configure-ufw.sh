@@ -6,7 +6,7 @@
 bash -c "echo net.ipv4.ip_forward=1 >> /etc/sysctl.conf"
 sysctl -p /etc/sysctl.conf
 
-PIP=$1
+PIP_ADDRESS=$1
 DEST_IP_ADDRESS=$2
 
 iptables -F
@@ -22,5 +22,5 @@ service ufw start
 
 apt install -y aptitude
 DEBIAN_FRONTEND=noninteractive aptitude install -y -q iptables-persistent
-/etc/init.d/iptables-persistent save
-update-rc.d iptables-persistent defaults
+netfilter-persistent save
+netfilter-persistent reload
