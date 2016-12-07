@@ -4,7 +4,10 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/ha-nva.iml" filepath="$PROJECT_DIR$/ha-nva.iml" />
       <module fileurl="file://$PROJECT_DIR$/nvadaemon/nvadaemon.iml" filepath="$PROJECT_DIR$/nvadaemon/nvadaemon.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nvadaemon/nvadaemon.iml" filepath="$PROJECT_DIR$/nvadaemon/nvadaemon.iml" />
       <module fileurl="file://$PROJECT_DIR$/nvadaemon-assembly/nvadaemon-assembly.iml" filepath="$PROJECT_DIR$/nvadaemon-assembly/nvadaemon-assembly.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nvadaemon-assembly/nvadaemon-assembly.iml" filepath="$PROJECT_DIR$/nvadaemon-assembly/nvadaemon-assembly.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nvadaemon-azure/nvadaemon-azure.iml" filepath="$PROJECT_DIR$/nvadaemon-azure/nvadaemon-azure.iml" />
       <module fileurl="file://$PROJECT_DIR$/nvadaemon-azure/nvadaemon-azure.iml" filepath="$PROJECT_DIR$/nvadaemon-azure/nvadaemon-azure.iml" />
     </modules>
   </component>

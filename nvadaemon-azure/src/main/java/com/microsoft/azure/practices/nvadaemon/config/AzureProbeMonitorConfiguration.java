@@ -19,6 +19,7 @@ public class AzureProbeMonitorConfiguration {
 
     private static final int DEFAULT_PROBE_POLLING_INTERVAL = 3000;
     private static final int DEFAULT_NUMBER_OF_FAILURES_THRESHOLD = 3;
+    private static final int DEFAULT_PROBE_CONNECT_TIMEOUT = 10000;
 
     private String subscriptionId;
     private String clientId;
@@ -33,6 +34,7 @@ public class AzureProbeMonitorConfiguration {
 
     private int numberOfFailuresThreshold = DEFAULT_NUMBER_OF_FAILURES_THRESHOLD;
     private int probePollingInterval = DEFAULT_PROBE_POLLING_INTERVAL;
+    private int probeConnectTimeout = DEFAULT_PROBE_CONNECT_TIMEOUT;
 
 
     @JsonIgnore
@@ -52,6 +54,8 @@ public class AzureProbeMonitorConfiguration {
 
     public AzureProbeMonitorConfiguration() {
     }
+
+    public int getProbeConnectTimeout() { return this.probeConnectTimeout; }
 
     public int getProbePollingInterval() { return this.probePollingInterval; }
 
