@@ -282,7 +282,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         try {
             NvaConfiguration current = this.nvaConfigurations.current();
             try (SocketChannel channel = SocketChannel.open()) {
-                channel.connect(current.getProbeSocketAddress());
+                //channel.connect(current.getProbeSocketAddress());
+                channel.socket().connect(current.getProbeSocketAddress(),
+                    this.configuration.getProbeConnectTimeout());
             }
 
             // If this works, we want to reset any previous failures.
