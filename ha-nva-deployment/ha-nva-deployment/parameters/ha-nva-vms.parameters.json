@@ -1,0 +1,69 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualMachinesSettings": {
+      "value": {
+        "namePrefix": "ha-nva",
+        "computerNamePrefix": "nva",
+        "size": "Standard_DS2_v2",
+        "osType": "linux",
+        "adminUsername": "testuser",
+        "adminPassword": "AweS0me@PW",
+        "sshPublicKey": "",
+        "osAuthenticationType": "password",
+        "nics": [
+          {
+            "isPublic": "false",
+            "subnetName": "dmz-external",
+            "privateIPAllocationMethod": "dynamic",
+            "isPrimary": "true",
+            "enableIPForwarding": false,
+            "domainNameLabelPrefix": "",
+            "dnsServers": []
+          },
+          {
+            "isPublic": "false",
+            "subnetName": "dmz-internal",
+            "privateIPAllocationMethod": "dynamic",
+            "isPrimary": "false",
+            "enableIPForwarding": true,
+            "domainNameLabelPrefix": "",
+            "dnsServers": []
+          }
+        ],
+        "imageReference": {
+          "publisher": "Canonical",
+          "offer": "UbuntuServer",
+          "sku": "16.04.0-LTS",
+          "version": "latest"
+        },
+        "dataDisks": {
+          "count": 0,
+          "properties": {}
+        },
+        "osDisk": {
+          "caching": "ReadWrite"
+        },
+        "extensions": [ ],
+        "availabilitySet": {
+          "useExistingAvailabilitySet": "No",
+          "name": "ha-nva-as"
+        }
+      }
+    },
+    "virtualNetworkSettings": {
+      "value": {
+        "name": "ha-nva-vnet",
+        "resourceGroup": "ha-nva-rg"
+      }
+    },
+    "buildingBlockSettings": {
+      "value": {
+        "storageAccountsCount": 2,
+        "vmCount": 2,
+        "vmStartIndex": 1
+      }
+    }
+  }
+}

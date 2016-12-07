@@ -1,0 +1,74 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualMachinesSettings": {
+      "value": {
+        "namePrefix": "ha-nva-zoo",
+        "computerNamePrefix": "zoo",
+        "size": "Standard_DS1_v2",
+        "osType": "linux",
+        "adminUsername": "testuser",
+        "adminPassword": "AweS0me@PW",
+        "sshPublicKey": "",
+        "osAuthenticationType": "password",
+        "nics": [
+          {
+            "isPublic": "false",
+            "subnetName": "dmz-internal",
+            "privateIPAllocationMethod": "dynamic",
+            "isPrimary": "true",
+            "enableIPForwarding": false,
+            "domainNameLabelPrefix": "",
+            "dnsServers": [ ]
+          }
+        ],
+        "imageReference": {
+          "publisher": "Canonical",
+          "offer": "UbuntuServer",
+          "sku": "16.04.0-LTS",
+          "version": "latest"
+        },
+        "dataDisks": {
+          "count": 0,
+          "properties": {}
+        },
+        "osDisk": {
+          "caching": "ReadWrite"
+        },
+        "extensions": [
+          {
+            "name": "docker-config-ext",
+            "settingsConfigMapperUri": "https://raw.githubusercontent.com/mspnp/template-building-blocks/master/templates/resources/Microsoft.Compute/virtualMachines/extensions/vm-extension-passthrough-settings-mapper.json",
+            "publisher": "Microsoft.OSTCExtensions",
+            "type": "CustomScriptForLinux",
+            "typeHandlerVersion": "1.5",
+            "autoUpgradeMinorVersion": true,
+            "settingsConfig": {
+              "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/extensions/install-docker.sh" ],
+              "commandToExecute": "sh install-docker.sh"
+            },
+            "protectedSettingsConfig": { }
+          }
+        ],
+        "availabilitySet": {
+          "useExistingAvailabilitySet": "No",
+          "name": "ha-nva-zoo-as"
+        }
+      }
+    },
+    "virtualNetworkSettings": {
+      "value": {
+        "name": "ha-nva-vnet",
+        "resourceGroup": "ha-nva-rg"
+      }
+    },
+    "buildingBlockSettings": {
+      "value": {
+        "storageAccountsCount": 3,
+        "vmCount": 3,
+        "vmStartIndex": 1
+      }
+    }
+  }
+}

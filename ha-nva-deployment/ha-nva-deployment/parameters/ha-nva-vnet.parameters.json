@@ -1,0 +1,34 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworkSettings": {
+      "value": {
+        "name": "ha-nva-vnet",
+        "resourceGroup": "ha-nva-rg",
+        "addressPrefixes": [
+          "10.0.0.0/16"
+        ],
+        "subnets": [
+          {
+            "name": "mgmt",
+            "addressPrefix": "10.0.0.128/25"
+          },
+          {
+            "name": "dmz-external",
+            "addressPrefix": "10.0.0.64/27"
+          },
+          {
+            "name": "dmz-internal",
+            "addressPrefix": "10.0.0.96/27"
+          },
+          {
+            "name": "web",
+            "addressPrefix": "10.0.1.0/24"
+          }
+        ],
+        "dnsServers": [ ]
+      }
+    }
+  }
+}
