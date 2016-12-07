@@ -8,7 +8,7 @@
           "vms": [ "ha-nva-vm1", "ha-nva-vm2" ],
           "extensions": [
             {
-              "name": "docker-config-ext",
+              "name": "ufw-ext",
               "settingsConfigMapperUri": "https://raw.githubusercontent.com/mspnp/template-building-blocks/master/templates/resources/Microsoft.Compute/virtualMachines/extensions/vm-extension-passthrough-settings-mapper.json",
               "publisher": "Microsoft.OSTCExtensions",
               "type": "CustomScriptForLinux",
@@ -16,7 +16,7 @@
               "autoUpgradeMinorVersion": true,
               "settingsConfig": {
                 "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/extensions/configure-ufw.sh" ],
-                "commandToExecute": "sh configure-ufw.sh 1.1.1.1 10.0.0.100"
+                "commandToExecute": "sh configure-ufw.sh 1.1.1.1 10.0.1.100"
               },
               "protectedSettingsConfig": {}
             }

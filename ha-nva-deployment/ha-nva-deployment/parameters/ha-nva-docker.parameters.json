@@ -4,8 +4,8 @@
   "parameters": {
     "virtualMachinesSettings": {
       "value": {
-        "namePrefix": "ha-nva-zoo",
-        "computerNamePrefix": "zoo",
+        "namePrefix": "ha-nva-docker",
+        "computerNamePrefix": "docker",
         "size": "Standard_DS1_v2",
         "osType": "linux",
         "adminUsername": "testuser",
