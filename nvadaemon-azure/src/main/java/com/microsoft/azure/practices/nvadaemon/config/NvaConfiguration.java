@@ -1,79 +1,62 @@
 package com.microsoft.azure.practices.nvadaemon.config;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.microsoft.azure.management.network.NetworkInterface;
 import com.microsoft.azure.practices.nvadaemon.AzureClient;
-import com.microsoft.azure.practices.nvadaemon.OperatingMode;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
-public class NvaConfiguration {
+public class NvaConfiguration implements ConfigurationValidation {
 
-    private String publicIpNetworkInterface;
-    private String routeNetworkInterface;
     private String probeNetworkInterface;
     private int probePort;
-    private String probeNetworkInterfacePrivateIpAddress;
     private SocketAddress probeSocketAddress;
-    @JsonIgnore
-    private OperatingMode operatingMode;
+    private List<NamedResourceId> networkInterfaces = new ArrayList<>();
 
-    NvaConfiguration() {
+    @JsonCreator
+    public NvaConfiguration(@JsonProperty("probeNetworkInterface")String probeNetworkInterface,
+                            @JsonProperty("probePort")Integer probePort,
+                            @JsonProperty("networkInterfaces")List<NamedResourceId> networkInterfaces) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(probeNetworkInterface),
+            "probeNetworkInterface cannot be null or empty");
+        Preconditions.checkNotNull(probePort, "probePort must be specified");
+        Preconditions.checkNotNull(networkInterfaces, "networkInterfaces cannot be null");
+        if (networkInterfaces.size() == 0) {
+            throw new IllegalArgumentException("networkInterfaces cannot be empty");
+        }
+
+        this.probeNetworkInterface = probeNetworkInterface;
+        this.probePort = probePort;
+        this.networkInterfaces = networkInterfaces;
+        if (this.networkInterfaces.stream()
+            .map(n -> n.getId())
+            .distinct()
+            .count() != this.networkInterfaces.size()) {
+            throw new IllegalArgumentException("Duplicate network interface found");
+        }
     }
-
-    public String getPublicIpNetworkInterface() { return this.publicIpNetworkInterface; }
-
-    public String getRouteNetworkInterface() { return this.routeNetworkInterface; }
-
-    public String getProbeNetworkInterface() { return this.probeNetworkInterface; }
-
-    public String getProbeNetworkInterfacePrivateIpAddress() { return this.probeNetworkInterfacePrivateIpAddress; }
-
-    public int getProbePort() { return this.probePort; }
-
-    public OperatingMode getOperatingMode() { return this.operatingMode; }
 
     public SocketAddress getProbeSocketAddress() { return this.probeSocketAddress; }
 
-    private OperatingMode deduceOperatingMode() {
-        if ((publicIpNetworkInterface != null) && (routeNetworkInterface != null)) {
-            return OperatingMode.PIP_AND_ROUTE;
-        } else if ((publicIpNetworkInterface != null) && (routeNetworkInterface == null)) {
-            return OperatingMode.ONLY_PIP;
-        } else if ((publicIpNetworkInterface == null) && (routeNetworkInterface != null)) {
-            return OperatingMode.ONLY_ROUTE;
-        } else {
-            throw new IllegalArgumentException("Could not deduce operating mode");
-        }
-    }
+    public List<NamedResourceId> getNetworkInterfaces() { return this.networkInterfaces; }
 
-    public void validate() throws ConfigurationException {
-        if ((Strings.isNullOrEmpty(publicIpNetworkInterface)) &&
-            (Strings.isNullOrEmpty(routeNetworkInterface))) {
-            throw new ConfigurationException(
-                "publicIpNetworkInterface and routeNetworkInterface cannot both be null or empty");
-        }
-
-        this.operatingMode = this.deduceOperatingMode();
-    }
-
-    void validateAzureResources(AzureClient azureClient) {
+    public void validate(AzureClient azureClient) throws ConfigurationException {
         Preconditions.checkNotNull(azureClient, "azureClient cannot be null");
-        if (((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
-            (this.operatingMode == OperatingMode.ONLY_PIP)) &&
-            (!azureClient.checkExistenceById(this.publicIpNetworkInterface))) {
-            throw new IllegalArgumentException("publicIpNetworkInterface '" +
-            this.publicIpNetworkInterface + "' does not exist");
-        }
 
-        if (((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
-            (this.operatingMode == OperatingMode.ONLY_ROUTE)) &&
-            (!azureClient.checkExistenceById(this.routeNetworkInterface))) {
-            throw new IllegalArgumentException("routeNetworkInterface '" +
-                this.routeNetworkInterface + "' does not exist");
+        List<String> invalidNetworkInterfaces = this.networkInterfaces.stream()
+            .map(r -> r.getId())
+            .filter(id -> !azureClient.checkExistenceById(id))
+            .collect(Collectors.toList());
+        if (invalidNetworkInterfaces.size() > 0) {
+            throw new ConfigurationException("Invalid network interface(s): " +
+                invalidNetworkInterfaces.stream().collect(Collectors.joining(", ")));
         }
 
         // Get the probe network interface and save the private ip
@@ -84,7 +67,6 @@ public class NvaConfiguration {
                 this.probeNetworkInterface + "' does not exist");
         }
 
-        this.probeNetworkInterfacePrivateIpAddress = probeNetworkInterface.primaryPrivateIp();
         this.probeSocketAddress = new InetSocketAddress(probeNetworkInterface.primaryPrivateIp(),
             this.probePort);
     }

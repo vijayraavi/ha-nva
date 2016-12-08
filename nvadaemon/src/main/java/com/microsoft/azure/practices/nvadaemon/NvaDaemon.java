@@ -40,7 +40,7 @@ public class NvaDaemon implements Daemon {
         client = CuratorFrameworkFactory.builder()
             .connectString(zookeeperConfiguration.getConnectionString())
             .retryPolicy(
-                new ExponentialBackoffRetry(zookeeperConfiguration.getRetrySleepTimeMs(),
+                new ExponentialBackoffRetry(zookeeperConfiguration.getRetrySleepTime(),
                     zookeeperConfiguration.getNumberOfRetries()))
             .namespace(ZK_NAMESPACE)
             .build();
@@ -128,7 +128,7 @@ public class NvaDaemon implements Daemon {
             executorService.shutdown();
             // If this times out, force a shutdown.
             if (!executorService.awaitTermination(
-                this.configuration.getDaemonConfiguration().getShutdownAwaitTimeMs(),
+                this.configuration.getDaemonConfiguration().getShutdownAwaitTime(),
                 TimeUnit.MILLISECONDS)) {
                 executorService.shutdownNow();
             }
