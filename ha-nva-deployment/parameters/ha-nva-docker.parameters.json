@@ -4,9 +4,9 @@
   "parameters": {
     "virtualMachinesSettings": {
       "value": {
-        "namePrefix": "ha-nva",
-        "computerNamePrefix": "nva",
-        "size": "Standard_DS2_v2",
+        "namePrefix": "ha-nva-docker",
+        "computerNamePrefix": "docker",
+        "size": "Standard_DS1_v2",
         "osType": "linux",
         "adminUsername": "testuser",
         "adminPassword": "AweS0me@PW",
@@ -15,21 +15,12 @@
         "nics": [
           {
             "isPublic": "false",
-            "subnetName": "dmz-external",
-            "privateIPAllocationMethod": "dynamic",
-            "isPrimary": "true",
-            "enableIPForwarding": true,
-            "domainNameLabelPrefix": "",
-            "dnsServers": []
-          },
-          {
-            "isPublic": "false",
             "subnetName": "dmz-internal",
             "privateIPAllocationMethod": "dynamic",
-            "isPrimary": "false",
-            "enableIPForwarding": true,
+            "isPrimary": "true",
+            "enableIPForwarding": false,
             "domainNameLabelPrefix": "",
-            "dnsServers": []
+            "dnsServers": [ ]
           }
         ],
         "imageReference": {
@@ -45,10 +36,24 @@
         "osDisk": {
           "caching": "ReadWrite"
         },
-        "extensions": [ ],
+        "extensions": [
+          {
+            "name": "docker-config-ext",
+            "settingsConfigMapperUri": "https://raw.githubusercontent.com/mspnp/template-building-blocks/master/templates/resources/Microsoft.Compute/virtualMachines/extensions/vm-extension-passthrough-settings-mapper.json",
+            "publisher": "Microsoft.OSTCExtensions",
+            "type": "CustomScriptForLinux",
+            "typeHandlerVersion": "1.5",
+            "autoUpgradeMinorVersion": true,
+            "settingsConfig": {
+              "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/extensions/install-docker.sh" ],
+              "commandToExecute": "sh install-docker.sh"
+            },
+            "protectedSettingsConfig": { }
+          }
+        ],
         "availabilitySet": {
           "useExistingAvailabilitySet": "No",
-          "name": "ha-nva-as"
+          "name": "ha-nva-docker-as"
         }
       }
     },
@@ -60,8 +65,8 @@
     },
     "buildingBlockSettings": {
       "value": {
-        "storageAccountsCount": 2,
-        "vmCount": 2,
+        "storageAccountsCount": 3,
+        "vmCount": 3,
         "vmStartIndex": 1
       }
     }
