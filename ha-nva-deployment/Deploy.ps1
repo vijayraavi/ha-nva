@@ -7,7 +7,7 @@ param(
   [Parameter(Mandatory=$false)]
   $Location = "West US 2",
   [Parameter(Mandatory=$false)]
-  $ResourceGroupName = "ha-nva-rg",
+  $ResourceGroupName = "ha-nva-rg"
 )
 
 $ErrorActionPreference = "Stop"
