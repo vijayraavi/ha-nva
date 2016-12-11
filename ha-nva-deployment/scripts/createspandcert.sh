@@ -1,16 +1,12 @@
 #! /bin/sh
 ##################################################################################################
-#     bash script to create service principal with provided certificate
-#     certificate in pfx format needs to be provided
-#     ./createspwithcertificate.sh -s={subscriptionid} -a=logicalappname -c=certfile.pfx
+#     bash script to create the certificates and service principal
+#     ./createspwithcertificate.sh -s={subscriptionid} -a=logicalappname -c=certsubjectname
 #
 #
 #
 #
 ###################################################################################################
-
-
-trap  'echo error executing command, echo  ${command}' ERR
 
 
 application=""
@@ -50,15 +46,17 @@ if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject
   exit
 fi
 
-openssl pkcs12 -in $certificatesubject -out nvacert.pem -nodes
+openssl req -x509 -days 3650 -newkey rsa:2048 -out cert.pem -nodes -subj "/CN=${certificatesubject}"
 
-keytool -importkeystore -srckeystore $certificatesubject -srcstoretype pkcs12 -destkeystore nva.jks -deststoretype JKS
+openssl pkcs12 -export -in cert.pem -inkey privkey.pem -out nva.pfx
+keytool -importkeystore -srckeystore nva.pfx -srcstoretype pkcs12 -destkeystore nva.jks -deststoretype JKS
 
+cat privkey.pem cert.pem > nvacert.pem
 
-echo $(grep -v -e CERTIFICATE nvacert.pem) > cert.txt
+echo $(grep -v -e CERTIFICATE cert.pem) > cert.txt
 
 cert=`cat cert.txt`
-echo $cert
+
 azure account set  "${subscription}"
 
 azure ad app create -n $application --home-page http://${application} \
