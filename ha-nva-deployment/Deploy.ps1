@@ -37,5 +37,5 @@ Login-AzureRmAccount -SubscriptionId $SubscriptionId | Out-Null
 $networkResourceGroup = New-AzureRmResourceGroup -Name $ResourceGroupName -Location $Location
 
 Write-Host "Deploying docker vms..."
-New-AzureRmResourceGroupDeployment -Name "ra-docker11-deployment" -ResourceGroupName $networkResourceGroup.ResourceGroupName `
+New-AzureRmResourceGroupDeployment -Name "ra-docker-deployment" -ResourceGroupName $networkResourceGroup.ResourceGroupName `
 	-TemplateUri $multiVMsTemplate.AbsoluteUri -TemplateParameterFile $dockerParametersFile
