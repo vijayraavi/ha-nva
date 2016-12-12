@@ -7,12 +7,20 @@
 #
 #
 ###################################################################################################
+func_err()
+{
+        echo "Error At line - $1"
+        echo "last command"
+        echo ${command}
+        exit $?
+}
 
+trap "{ func_err()  \${LINENO} ; }" ERR
 
 application=""
 subscription=""
 certificatesubject=""
-command=""
+export command=""
 
 for i in "$@"
 do
