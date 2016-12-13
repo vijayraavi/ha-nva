@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 ##################################################################################################
 #     bash script to create service principal with provided certificate
 #     certificate in pfx format needs to be provided

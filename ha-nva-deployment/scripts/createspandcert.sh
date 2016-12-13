@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 ##################################################################################################
 #     bash script to create the certificates and service principal
 #     ./createspwithcertificate.sh -s={subscriptionid} -a=logicalappname -c=certsubjectname
@@ -7,15 +7,15 @@
 #
 #
 ###################################################################################################
-func_err()
-{
+
+func_err() {
         echo "Error At line - $1"
-        echo "last command"
+        echo "Command"
         echo ${command}
         exit $?
 }
 
-trap "{ func_err()  \${LINENO} ; }" ERR
+trap "{ func_err() \${LINENO} ; }" ERR
 
 application=""
 subscription=""
@@ -72,29 +72,31 @@ azure ad app create -n $application --home-page http://${application} \
 
 
 appid=$(azure ad app show ${application} \
--i "http://${application}" | awk '{if($2 ~ "AppId") print $3}')
+-i "http://${application}"  --json |  jq -r '.[0].appId')
 
 echo $appid
 
 azure ad sp create -a $appid
 
 objectid=$(azure ad sp show \
--n  http://${application} -v | awk '{if($2 ~ "Object") print $4}')
+-n  http://${application} --json | jq -r '.[0].objectId')
 
 sleep 30
 
 echo $objectid
+role=$(cat CustomAzureRole.json | jq '.Name')
+azure role create --inputfile CustomAzureRole.json
 
-azure role assignment create --objectId ${objectid} -o owner \
--c /subscriptions/${subscription}/
+roleid=$(azure role show -n ${role} --json | jq '.[0].Id')
 
+azure role assignment create --objectId ${objectid} --roleId ${roleid} 
+#-c /subscriptions/${subscription}
 
-
-tenant=$(azure account show | awk '{if($2 ~ "Tenant") print $5}')
+tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
-echo "Application: ${appid}"
-echo "Tenant: ${tenant}"
+echo "Application Id : ${appid}"
+echo "Tenant Id      : ${tenant}" 
 echo "======================================================="
 
 
@@ -104,3 +106,10 @@ echo "commands executed successfully. to test run command below"
 echo "============================================================"
 
 echo "azure login --service-principal --tenant ${tenant}  -u ${appid} --certificate-file nvacert.pem --thumbprint ${thumb}"
+
+
+
+
+
+
+
