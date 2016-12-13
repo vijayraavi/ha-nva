@@ -1,0 +1,44 @@
+{
+    "zookeeper": {
+        "connectionString": "lin-nva1:2182,lin-nva1:2183,lin-nva1:2184,lin-nva2:2184,lin-nva2:2185",
+        "retrySleepTimeMs": 1000,
+        "numberOfRetries": 5,
+        "leaderSelectorPath": "/leader-election-remote"
+    },
+    "daemon": {
+        "shudownAwaitTimeMs": 10000,
+        "monitors": [
+            {
+                "monitorClass": "com.microsoft.azure.practices.nvadaemon.AzureProbeMonitor",
+                "settings": {
+                    "subscriptionId": "",
+                    "clientId": "",
+                    "tenantId": "",
+                    "keyStorePath": "/nvabin/symnva.jks",
+                    "keyStorePassword": "passwordforkeystore",
+                    "certificatePassword": "passwordforcertificate",
+                    "numberOfFailuresThreshold": 3,
+                    "publicIpAddress": "",
+                    "routeTables": [
+                        "",
+                        ""
+                    ],
+                    "nvas": [
+                        {
+                            "publicIpNetworkInterface": "",
+                            "routeNetworkInterface": "",
+                            "probeNetworkInterface": "",
+                            "probePort": 443
+                        },
+                        {
+                            "publicIpNetworkInterface": "",
+                            "routeNetworkInterface": "",
+                            "probeNetworkInterface": "",
+                            "probePort": 443
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
