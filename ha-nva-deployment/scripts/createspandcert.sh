@@ -9,13 +9,13 @@
 ###################################################################################################
 
 func_err() {
-        echo "Error At line - $1"
-        echo "Command"
+        echo ""
+        echo "Error executing Command"
         echo ${command}
         exit $?
 }
 
-trap "{ func_err() \${LINENO} ; }" ERR
+trap "{ func_err()  }" ERR
 
 application=""
 subscription=""
@@ -84,12 +84,12 @@ objectid=$(azure ad sp show \
 sleep 30
 
 echo $objectid
-role=$(cat CustomAzureRole.json | jq '.Name')
+#role=$(cat CustomAzureRole.json | jq '.Name')
 azure role create --inputfile CustomAzureRole.json
+roleid=$(azure role show -n "HA-NVA Operator" --json | jq '.[0].Id')
 
-roleid=$(azure role show -n ${role} --json | jq '.[0].Id')
-
-azure role assignment create --objectId ${objectid} --roleId ${roleid} 
+echo  ${roleid}
+azure role assignment create --objectId ${objectid} -o "HA-NVA Operator" 
 #-c /subscriptions/${subscription}
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')
