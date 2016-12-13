@@ -14,3 +14,5 @@ service docker start
 curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
 apt-get install -y nodejs
 npm install -g azure-cli
+apt-get install -y default-jre
+apt-get install -y jq
