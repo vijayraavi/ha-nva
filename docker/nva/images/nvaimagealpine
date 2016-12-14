@@ -1,25 +1,40 @@
 FROM openjdk:8-jre-alpine
 
 ENV NVA_USER nvauser
-ARG SRC=commit
-ARG DST=/nvabin
-ENV JAR=${DST}/nva.jar:${DST}/*
-ENV LOG=-Dlog4j.configuration=file:${DST}/log4j.properties
-ENV CLASS=com.microsoft.azure.practices.nvadaemon.Main
-ENV CONFIG=${DST}/nvadaemon.cfg
+ENV CLASSJAR nva-1.0-snapshot.jar
+ENV CONFIGFILE nvadaemon-remote.json
+ARG SRC 
+ARG DST 
+ENV JAR ${DST}/${CLASSJAR}:${DST}/*
+ENV LOG -Dlog4j.configuration=file:${DST}/log4j.properties
+ENV CLASS com.microsoft.azure.practices.nvadaemon.Main
+ENV CONFIG ${DST}/${CONFIGFILE}
 
 RUN apk add --no-cache \
     bash \
     su-exec
 
-RUN set -x \
-    && adduser -D "$NVA_USER" \
-    && mkdir -p "$DST" \
-    && chown "$NVA_USER:$NVA_USER" "$DST"
+RUN apk update 
+RUN apk add ca-certificates 
+RUN update-ca-certificates 
+RUN apk add openssl
 
-COPY "$SRC" "$DST"
-COPY "$SRC/nva-docker-entrypoint.sh" /
-RUN chown -R "$NVA_USER:$NVA_USER"  "$DST"
+RUN set -x \
+    && adduser -D "$NVA_USER" 
+
+
+COPY "$SRC/nva-docker-entrypoint.sh /
+
+RUN set -x \
+    && apk add --no-cache --virtual .build-deps \
+        gnupg 
+
+ 
+
+RUN chmod a+x /nva-docker-entrypoint.sh 
+RUN  wget -q https://github.com/mspnp/ha-nva/raw/master/ha-nva-deployment/nva.zip 
+RUN unzip nva.zip 
+RUN chown "$NVA_USER:$NVA_USER" "$DST"
 
 ENTRYPOINT ["/nva-docker-entrypoint.sh"]
 
