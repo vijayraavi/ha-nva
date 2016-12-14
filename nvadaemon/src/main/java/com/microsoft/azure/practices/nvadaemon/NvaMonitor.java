@@ -45,9 +45,11 @@ public class NvaMonitor implements AutoCloseable {
     }
 
     private class ScheduledMonitorCallable<T extends ScheduledMonitor> extends MonitorCallable<T> {
-        public ScheduledMonitorCallable(T monitor,
-                                        MonitorConfiguration monitorConfiguration) {
-            super(monitor, monitorConfiguration);
+//        public ScheduledMonitorCallable(T monitor,
+//                                        MonitorConfiguration monitorConfiguration) {
+//            super(monitor, monitorConfiguration);
+        public ScheduledMonitorCallable(T monitor) {
+            super(monitor);
         }
 
         @Override
@@ -69,12 +71,13 @@ public class NvaMonitor implements AutoCloseable {
 
     private class MonitorCallable<T extends Monitor> implements Callable<Void> {
         protected T monitor;
-        protected MonitorConfiguration monitorConfiguration;
+        //protected MonitorConfiguration monitorConfiguration;
 
-        public MonitorCallable(T monitor, MonitorConfiguration monitorConfiguration) {
+        //public MonitorCallable(T monitor, MonitorConfiguration monitorConfiguration) {
+        public MonitorCallable(T monitor) {
             this.monitor = Preconditions.checkNotNull(monitor, "monitor cannot be null");
-            this.monitorConfiguration = Preconditions.checkNotNull(monitorConfiguration,
-                "monitorConfiguration cannot be null");
+//            this.monitorConfiguration = Preconditions.checkNotNull(monitorConfiguration,
+//                "monitorConfiguration cannot be null");
         }
 
         protected void await() throws InterruptedException {
@@ -87,7 +90,8 @@ public class NvaMonitor implements AutoCloseable {
         public Void call() throws Exception {
             log.debug("Starting monitor task");
             //monitor.init(config.getAll());
-            monitor.init(this.monitorConfiguration);
+            //monitor.init(this.monitorConfiguration);
+            monitor.init();
             try {
                 while (isRunning) {
                     lock.lock();
@@ -122,13 +126,15 @@ public class NvaMonitor implements AutoCloseable {
             Class<?> clazz = getClass()
                 .getClassLoader()
                 .loadClass(className);
-            Constructor<?> ctor = clazz.getConstructor();
+            Constructor<?> ctor = clazz.getConstructor(MonitorConfiguration.class);
             if (ScheduledMonitor.class.isAssignableFrom(clazz)) {
                 result = new ScheduledMonitorCallable(
-                    (ScheduledMonitor) ctor.newInstance(), monitorConfiguration);
+                    //(ScheduledMonitor) ctor.newInstance(), monitorConfiguration);
+                    (ScheduledMonitor) ctor.newInstance(monitorConfiguration));
             } else if (Monitor.class.isAssignableFrom(clazz)) {
                 result = new MonitorCallable(
-                    (Monitor) ctor.newInstance(), monitorConfiguration);
+                    //(Monitor) ctor.newInstance(), monitorConfiguration);
+                    (Monitor) ctor.newInstance(monitorConfiguration));
             } else {
                 innerException = new ClassCastException(
                     "Class " + className + " does not implement Monitor or ScheduledMonitor");

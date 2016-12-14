@@ -1,5 +1,6 @@
 package com.microsoft.azure.practices.nvadaemon.config;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,32 +18,22 @@ import java.io.StringWriter;
 public class NvaDaemonConfiguration {
     private static final Logger log = LoggerFactory.getLogger(NvaDaemonConfiguration.class);
 
-    @JsonProperty("zookeeper")
     private ZookeeperConfiguration zookeeperConfiguration;
-
-    @JsonProperty("daemon")
     private DaemonConfiguration daemonConfiguration;
 
-    public NvaDaemonConfiguration() {
+    @JsonCreator
+    public NvaDaemonConfiguration(@JsonProperty("zookeeper")ZookeeperConfiguration zookeeperConfiguration,
+                                  @JsonProperty("daemon")DaemonConfiguration daemonConfiguration) {
+        this.zookeeperConfiguration = Preconditions.checkNotNull(zookeeperConfiguration,
+            "zookeeperConfiguration cannot be null");
+        this.daemonConfiguration = Preconditions.checkNotNull(daemonConfiguration,
+            "daemonConfiguration cannot be null");
     }
 
     public ZookeeperConfiguration getZookeeperConfiguration() { return this.zookeeperConfiguration; }
 
     public DaemonConfiguration getDaemonConfiguration() { return this.daemonConfiguration; }
 
-    public void validate() throws ConfigurationException {
-        try {
-            Preconditions.checkNotNull(this.zookeeperConfiguration,
-                "zookeeperConfiguration cannot be null");
-            Preconditions.checkNotNull(this.daemonConfiguration,
-                "daemonConfiguration cannot be null");
-        } catch (IllegalArgumentException e) {
-            throw new ConfigurationException("NvaDaemonConfiguration error", e);
-        }
-
-        this.zookeeperConfiguration.validate();
-        this.daemonConfiguration.validate();
-    }
     public static NvaDaemonConfiguration parseArguments(String[] args) throws ConfigurationException {
         CommandLine commandLine = parseCommandLine(args);
         if (commandLine == null) {
@@ -62,7 +53,6 @@ public class NvaDaemonConfiguration {
 
             NvaDaemonConfiguration configuration =
                 mapper.readValue(new File(path), NvaDaemonConfiguration.class);
-            configuration.validate();
             return configuration;
         } catch (IOException | IllegalArgumentException e) {
             throw new ConfigurationException("Error processing " + path, e);

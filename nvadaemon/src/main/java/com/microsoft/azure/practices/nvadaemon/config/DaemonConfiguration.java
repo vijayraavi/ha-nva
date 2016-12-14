@@ -1,32 +1,34 @@
 package com.microsoft.azure.practices.nvadaemon.config;
 
-import com.google.common.base.Preconditions;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DaemonConfiguration {
-    private static final int DEFAULT_SHUTDOWN_AWAIT_TIME_MS = 5000;
+    private static final int DEFAULT_SHUTDOWN_AWAIT_TIME = 5000;
 
-    private int shutdownAwaitTimeMs = DEFAULT_SHUTDOWN_AWAIT_TIME_MS;
+    private int shutdownAwaitTime = DEFAULT_SHUTDOWN_AWAIT_TIME;
     private List<MonitorConfiguration> monitors = new ArrayList<>();
 
-    public DaemonConfiguration() {
-    }
+    @JsonCreator
+    public DaemonConfiguration(@JsonProperty("monitors")List<MonitorConfiguration> monitors,
+                               @JsonProperty("shutdownAwaitTime")Integer shutdownAwaitTime) {
+        if (monitors != null) {
+            this.monitors = monitors;
+        }
 
-    public int getShutdownAwaitTimeMs() { return this.shutdownAwaitTimeMs; }
-
-    public List<MonitorConfiguration> getMonitors() { return this.monitors; }
-
-    public void validate() throws ConfigurationException {
-        try {
-            Preconditions.checkNotNull(this.monitors, "monitors cannot be null");
-        } catch (IllegalArgumentException e) {
-            throw new ConfigurationException("DaemonConfiguration error", e);
+        if (shutdownAwaitTime != null) {
+            this.shutdownAwaitTime = shutdownAwaitTime;
         }
 
         if (this.monitors.size() == 0) {
-            throw new ConfigurationException("No monitors found in configuration");
+            throw new IllegalArgumentException("No monitors found in configuration");
         }
     }
+
+    public int getShutdownAwaitTime() { return this.shutdownAwaitTime; }
+
+    public List<MonitorConfiguration> getMonitors() { return this.monitors; }
 }

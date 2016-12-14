@@ -5,15 +5,17 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.CloudException;
+import com.microsoft.azure.credentials.ApplicationTokenCredentials;
+import com.microsoft.azure.credentials.AzureTokenCredentials;
 import com.microsoft.azure.management.network.*;
 import com.microsoft.azure.practices.nvadaemon.collect.CurrentPeekingIterator;
-import com.microsoft.azure.practices.nvadaemon.config.AzureProbeMonitorConfiguration;
-import com.microsoft.azure.practices.nvadaemon.config.MonitorConfiguration;
-import com.microsoft.azure.practices.nvadaemon.config.NvaConfiguration;
+import com.microsoft.azure.practices.nvadaemon.config.*;
 import com.microsoft.azure.practices.nvadaemon.credentials.AsymmetricKeyCredentialFactory;
 import com.microsoft.azure.practices.nvadaemon.credentials.AzureClientIdCertificateCredentialFactoryImpl;
 import com.microsoft.azure.practices.nvadaemon.credentials.CertificateCredentials;
 import com.microsoft.azure.practices.nvadaemon.monitor.ScheduledMonitor;
+import com.microsoft.azure.practices.nvadaemon.config.AzureConfiguration.ServicePrincipal;
+import com.microsoft.azure.practices.nvadaemon.config.AzureConfiguration.ServicePrincipal.AuthenticationMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,257 +26,274 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class AzureProbeMonitor implements ScheduledMonitor {
 
     private final Logger log = LoggerFactory.getLogger(AzureProbeMonitor.class);
     private int failures;
-    //private SocketChannel channel;
     private AzureClient azureClient;
     private AzureProbeMonitorConfiguration configuration;
     private CurrentPeekingIterator<NvaConfiguration> nvaConfigurations;
 
+    public AzureProbeMonitor(MonitorConfiguration monitorConfiguration)
+        throws ConfigurationException {
+        this.configuration = AzureProbeMonitorConfiguration.create(
+            Preconditions.checkNotNull(monitorConfiguration, "monitorConfiguration cannot be null"));
+        this.failures = 0;
+        initializeAzure();
+        this.configuration.validate(this.azureClient);
+    }
+
     private void initializeAzure() throws CloudException {
         try {
-            AsymmetricKeyCredentialFactory factory =
-                new AzureClientIdCertificateCredentialFactoryImpl(
-                    this.configuration);
+            AzureTokenCredentials credentials;
+            AzureConfiguration azureConfiguration = this.configuration.getAzureConfiguration();
+            ServicePrincipal servicePrincipal =
+                azureConfiguration.getServicePrincipal();
 
-            CertificateCredentials certificateCredentials = new CertificateCredentials(
-                this.configuration.getTenantId(), AzureEnvironment.AZURE, factory);
-            this.azureClient = AzureClient.create(certificateCredentials,
-                this.configuration.getSubscriptionId());
+            if (servicePrincipal.getAuthenticationMode() == AuthenticationMode.PASSWORD) {
+                credentials = new ApplicationTokenCredentials(
+                    servicePrincipal.getClientId(), servicePrincipal.getTenantId(),
+                    servicePrincipal.getClientSecret(), AzureEnvironment.AZURE);
+            } else if (servicePrincipal.getAuthenticationMode() == AuthenticationMode.CERTIFICATE) {
+                AsymmetricKeyCredentialFactory factory =
+                    new AzureClientIdCertificateCredentialFactoryImpl(
+                        servicePrincipal.getClientId(),
+                        servicePrincipal.getClientCertificate().getKeyStorePath(),
+                        servicePrincipal.getClientCertificate().getKeyStorePassword(),
+                        servicePrincipal.getClientCertificate().getCertificatePassword());
+
+                credentials = new CertificateCredentials(
+                    servicePrincipal.getTenantId(), AzureEnvironment.AZURE, factory);
+            } else {
+                throw new IllegalArgumentException("Unsupported AuthenticationMode: " +
+                servicePrincipal.getAuthenticationMode());
+            }
+
+            this.azureClient = AzureClient.create(credentials,
+                azureConfiguration.getSubscriptionId());
         } catch (CloudException e) {
-            log.error("Exception creating Azure client", e);
+            this.log.error("Exception creating Azure client", e);
             throw e;
         }
     }
 
-    private int indexOfPublicIpNetworkInterface(List<NvaConfiguration> nvaConfigurations,
-                                                String publicIpAddressId) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(publicIpAddressId),
-            "publicIpAddressId cannot be null or empty");
-        for (int i = 0; i < nvaConfigurations.size(); i++) {
-            if (publicIpAddressId.equals(nvaConfigurations.get(i).getPublicIpNetworkInterface())) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private int indexOfRouteNetworkInterface(List<NvaConfiguration> nvaConfigurations,
-                                             String privateIpAddress) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(privateIpAddress),
-            "privateIpAddress cannot be null or empty");
-
-        for (int i = 0; i < nvaConfigurations.size(); i++) {
-            NetworkInterface networkInterface = this.azureClient.getNetworkInterfaceById(
-                nvaConfigurations.get(i).getRouteNetworkInterface()
-            );
-
-            if (privateIpAddress.equals(networkInterface.primaryPrivateIp())) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
     private int getCurrentNvaIndex() {
         // We need to find out the current setup of the NVAs
-        // TODO - We probably need to implement some self healing things around this.
+        // We are going to change this from the original version.  In order to save some cycles,
+        // the first non-negative index we find, we will assume is the current NVA.  We will then
+        // verify the rest of the configuration.  If something doesn't match (with the algorithm
+        // being heavily weighted to RouteTables, since switching routes is faster), we will
+        // change the RouteTables to match the current index.
 
-        int pipNetworkInterfaceIndex = -1;
-        int routeNetworkInterfaceIndex = -1;
-        // This is so if we are operating in either pip or route, but not both.
-        int currentNvaIndex = -1;
-        String publicIpAddressId = this.configuration.getPublicIpAddress();
-        if ((this.configuration.getOperatingMode() == OperatingMode.PIP_AND_ROUTE) ||
-            (this.configuration.getOperatingMode() == OperatingMode.ONLY_PIP)) {
-            PublicIpAddress publicIpAddress = this.azureClient.getPublicIpAddressById(publicIpAddressId);
-            if (publicIpAddress == null) {
-                throw new IllegalArgumentException("Invalid PublicIpAddress: " + publicIpAddressId);
+        Map<String, PublicIpAddress> publicIpAddresses = this.configuration.getPublicIpAddresses().stream()
+            .collect(Collectors.toMap(r -> r.getName(), r -> this.azureClient.getPublicIpAddressById(r.getId())));
+        List<RouteTable> routeTables = this.configuration.getRouteTables().stream()
+            .map(id -> this.azureClient.getRouteTableById(id))
+            .collect(Collectors.toList());
+        for (int i = 0; i < this.configuration.getNvaConfigurations().size(); i++) {
+            NvaConfiguration nvaConfiguration = this.configuration.getNvaConfigurations().get(i);
+            for (NamedResourceId networkInterface : nvaConfiguration.getNetworkInterfaces()) {
+                PublicIpAddress publicIpAddress = publicIpAddresses.get(networkInterface.getName());
+                // If publicIpAddress is null, this network interface is not assigned to a
+                // public ip address.
+                if ((publicIpAddress != null) &&
+                    (publicIpAddress.hasAssignedNetworkInterface()) &&
+                    (publicIpAddress.getAssignedNetworkInterfaceIpConfiguration().parent()
+                        .id().equals(networkInterface.getId()))) {
+                    return i;
+                }
+
             }
 
-            if (!publicIpAddress.hasAssignedNetworkInterface()) {
-                throw new IllegalArgumentException(
-                    "PublicIpAddress " + publicIpAddressId + " is not assigned to a NetworkInterface");
-            }
-
-            NicIpConfiguration nicIpConfiguration =
-                publicIpAddress.getAssignedNetworkInterfaceIpConfiguration();
-
-            NetworkInterface networkInterface = nicIpConfiguration.parent();
-            log.debug("NetworkInterface: " + networkInterface.id() + " PublicIpAddress: " + publicIpAddressId);
-            pipNetworkInterfaceIndex = indexOfPublicIpNetworkInterface(
-                this.configuration.getNvaConfigurations(),
-                networkInterface.id());
-            if (pipNetworkInterfaceIndex == -1) {
-                throw new IllegalArgumentException("NetworkInterface " + networkInterface.id() +
-                    " was not found in the list of valid network interfaces");
-            }
-
-            currentNvaIndex = pipNetworkInterfaceIndex;
-        }
-
-        // TODO - We need to figure out how to validate with multiple RouteTables!!!
-        // We'll do it the safe way for now, but it will be a little slow
-        // We will loop through all of the RouteTables (yuck), pull out the ones
-        // with nextHopIpAddresses, distinct() them, and then see if one matches.
-        if ((this.configuration.getOperatingMode() == OperatingMode.PIP_AND_ROUTE) ||
-            (this.configuration.getOperatingMode() == OperatingMode.ONLY_ROUTE)) {
-
-            List<String> nextHopIpAddresses = this.configuration.getRouteTables()
-                .stream()
-                .flatMap(id -> this.azureClient.getRouteTableById(id)
-                    .routes().values().stream()
-                    .filter(r -> !Strings.isNullOrEmpty(r.nextHopIpAddress()))
+            Set<String> privateIpAddresses = nvaConfiguration.getNetworkInterfaces().stream()
+                .map(r -> this.azureClient.getNetworkInterfaceById(r.getId()).primaryPrivateIp())
+                .collect(Collectors.toSet());
+            Set<String> nextHopIpAddresses = routeTables.stream()
+                .flatMap(rt -> rt.routes().values().stream()
+                    .filter(r -> r.nextHopType().equals(RouteNextHopType.VIRTUAL_APPLIANCE))
                     .map(r -> r.nextHopIpAddress()))
                 .distinct()
-                .collect(Collectors.toList());
-            for (String nextHopIpAddress : nextHopIpAddresses) {
-                int temp = this.indexOfRouteNetworkInterface(
-                    this.configuration.getNvaConfigurations(), nextHopIpAddress);
-                if (temp > -1) {
-                    routeNetworkInterfaceIndex = temp;
-                    break;
+                .collect(Collectors.toSet());
+            privateIpAddresses.retainAll(nextHopIpAddresses);
+            if (!privateIpAddresses.isEmpty()) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void migrateAzureResources(NvaConfiguration nvaConfiguration) {
+        Preconditions.checkNotNull(nvaConfiguration, "nvaConfiguration cannot be null");
+        this.migratePublicIpAddress(nvaConfiguration);
+        this.migrateRouteTables(nvaConfiguration);
+    }
+
+    private void migrateRouteTables(NvaConfiguration next) {
+        // We are going to migrate all routes that start with any of the other private ip
+        // addresses.
+        Map<String, String> toMap = next.getNetworkInterfaces().stream()
+            .collect(Collectors.toMap(r -> r.getName(),
+                r -> this.azureClient.getNetworkInterfaceById(r.getId()).primaryPrivateIp()));
+        Map<String, List<String>> fromMap = this.configuration.getNvaConfigurations().stream()
+            .filter(c -> !c.equals(next))
+            .flatMap(c -> c.getNetworkInterfaces().stream())
+            .collect(Collectors.groupingBy(r -> r.getName(),
+                Collectors.mapping(
+                    r -> this.azureClient.getNetworkInterfaceById(r.getId()).primaryPrivateIp(),
+                    Collectors.toList())));
+        List<RouteTable> routeTables = this.configuration.getRouteTables().stream()
+            .map(id -> this.azureClient.getRouteTableById(id))
+            .collect(Collectors.toList());
+        for (RouteTable routeTable : routeTables) {
+            RouteTable.Update update = null;
+            for (String nicGroup : fromMap.keySet()) {
+                String toIpAddress = toMap.get(nicGroup);
+                List<String> routeNames = routeTable.routes().entrySet().stream()
+                    .filter(e -> fromMap.get(nicGroup).contains(e.getValue().nextHopIpAddress()))
+                    .map(e -> e.getKey())
+                    .collect(Collectors.toList());
+                for (String routeName : routeNames) {
+                    update = routeTable.update()
+                        .updateRoute(routeName)
+                        .withNextHopToVirtualAppliance(toIpAddress)
+                        .parent();
                 }
             }
 
-            if (routeNetworkInterfaceIndex == -1) {
-                throw new IllegalArgumentException(
-                    "No NetworkInterfaces match configured route tables");
+            if (update != null) {
+                this.log.debug("Updating route table" + routeTable.id());
+                update.apply();
+                this.log.debug("Updated route table" + routeTable.id());
             }
-
-            currentNvaIndex = routeNetworkInterfaceIndex;
         }
-
-        if ((this.configuration.getOperatingMode() == OperatingMode.PIP_AND_ROUTE) &&
-            (pipNetworkInterfaceIndex != routeNetworkInterfaceIndex)) {
-            // The indexes need to match here.  Otherwise, the pip and route are pointing at different NVAs
-            // and the currentNvaIndex is wrong.  Let's attempt to heal things!
-            NvaConfiguration from = this.configuration.getNvaConfigurations().get(
-                routeNetworkInterfaceIndex);
-            NvaConfiguration to = this.configuration.getNvaConfigurations().get(
-                pipNetworkInterfaceIndex);
-            this.migrateRouteTables(from, to);
-            //throw new IllegalArgumentException("Current PublicIpAddress and Route point to different NVAs");
-        }
-
-        return currentNvaIndex;
     }
 
-    private <T> T getById(String id, Function<String, T> getById) {
-        log.debug("Getting resource: " + id);
-        T resource = getById.apply(id);
-        if (resource == null) {
-            throw new IllegalArgumentException("Error getting resource: " + id);
-        }
-
-        log.debug("Got resource: " + id);
-
-        return resource;
-    }
-
-    private <T> void migrate(String fromId, String toId, Function<String, T> getById,
-                          BiConsumer<T, T> migration) {
-        Preconditions.checkNotNull(fromId, "fromId cannot be null");
-        Preconditions.checkNotNull(toId, "toId cannot be null");
-        Preconditions.checkNotNull(getById, "getById cannot be null");
-        Preconditions.checkNotNull(migration, "migration cannot be null");
-        T from = getById(fromId, getById);
-        T to = getById(toId, getById);
-        migration.accept(from, to);
-    }
-
-    private void migrateAzureResources() {
-        NvaConfiguration current = this.nvaConfigurations.current();
-        NvaConfiguration next = this.nvaConfigurations.peek();
-
-        if ((this.configuration.getOperatingMode() == OperatingMode.PIP_AND_ROUTE) ||
-            (this.configuration.getOperatingMode() == OperatingMode.ONLY_PIP)) {
-            migratePublicIpAddress(current, next);
-        }
-
-        if ((this.configuration.getOperatingMode() == OperatingMode.PIP_AND_ROUTE) ||
-            (this.configuration.getOperatingMode() == OperatingMode.ONLY_ROUTE)) {
-            migrateRouteTables(current, next);
-        }
-
-        this.nvaConfigurations.next();
-    }
-
-    private void migrateRouteTables(NvaConfiguration current,
-                                    NvaConfiguration next) {
-        migrate(current.getRouteNetworkInterface(),
-            next.getRouteNetworkInterface(),
-            this.azureClient.networkInterfaces()::getById,
-            (from, to) -> {
-                // Update the route tables
-                for (String id : this.configuration.getRouteTables()) {
-                    log.debug("Updating route table" + id +
-                        " to " + to.primaryPrivateIp());
-                    RouteTable routeTable = this.azureClient.getRouteTableById(
-                        id);
-
-                    List<String> routeNames = routeTable.routes().entrySet().stream()
-                        .filter(e -> from.primaryPrivateIp().equals(
-                            e.getValue().nextHopIpAddress()))
-                        .map(e -> e.getKey())
-                        .collect(Collectors.toList());
-                    RouteTable.Update update = null;
-                    for (String routeName : routeNames) {
-                        update = routeTable.update()
-                            .updateRoute(routeName)
-                            .withNextHopToVirtualAppliance(to.primaryPrivateIp())
-                            .parent();
-                    }
-
-                    if (update != null) {
-                        update.apply();
-                    }
-
-                    log.debug("Updated route table" + id + " to " + to.primaryPrivateIp());
+    private void migratePublicIpAddress(NvaConfiguration next) {
+        Map<String, NetworkInterface> toMap = next.getNetworkInterfaces().stream()
+            .collect(Collectors.toMap(r -> r.getName(),
+                r -> this.azureClient.getNetworkInterfaceById(r.getId())));
+        Map<String, PublicIpAddress> publicIpAddresses =
+            this.configuration.getPublicIpAddresses().stream()
+            .collect(Collectors.toMap(r -> r.getName(),
+                r -> this.azureClient.getPublicIpAddressById(r.getId())));
+        for (Map.Entry<String, PublicIpAddress> entry : publicIpAddresses.entrySet()) {
+            NetworkInterface toNetworkInterface = toMap.get(entry.getKey());
+            if (toNetworkInterface != null) {
+                PublicIpAddress publicIpAddress = entry.getValue();
+                NetworkInterface publicIpAddressNetworkInterface = null;
+                if (publicIpAddress.hasAssignedNetworkInterface()) {
+                    publicIpAddressNetworkInterface =
+                        publicIpAddress.getAssignedNetworkInterfaceIpConfiguration()
+                        .parent();
                 }
-            });
+
+                boolean migratePip = false;
+                if (publicIpAddressNetworkInterface == null) {
+                    migratePip = true;
+                } else if (!publicIpAddressNetworkInterface.id().equals(
+                        toNetworkInterface.id())) {
+                    migratePip = true;
+                    this.log.debug("Removing public ip address from network interface " +
+                        publicIpAddressNetworkInterface.id());
+
+                    publicIpAddressNetworkInterface.update()
+                        .withoutPrimaryPublicIpAddress()
+                        .apply();
+                    this.log.debug("Public ip address removed from network interface " +
+                        publicIpAddressNetworkInterface.id());
+
+                    this.log.debug("Adding public ip address to network interface " +
+                        toNetworkInterface.id());
+                    toNetworkInterface.update()
+                        .withExistingPrimaryPublicIpAddress(publicIpAddress)
+                        .apply();
+                    this.log.debug("Added public ip address to network interface " +
+                        toNetworkInterface.id());
+                }
+
+                if (migratePip) {
+                    this.log.debug("Adding public ip address to network interface " +
+                        toNetworkInterface.id());
+                    toNetworkInterface.update()
+                        .withExistingPrimaryPublicIpAddress(publicIpAddress)
+                        .apply();
+                    this.log.debug("Added public ip address to network interface " +
+                        toNetworkInterface.id());
+                }
+            }
+        }
     }
 
-    private void migratePublicIpAddress(NvaConfiguration current,
-                                        NvaConfiguration next) {
-        migrate(current.getPublicIpNetworkInterface(),
-            next.getPublicIpNetworkInterface(),
-            this.azureClient.networkInterfaces()::getById,
-            (from, to) -> {
-                PublicIpAddress publicIpAddress = this.azureClient.getPublicIpAddressById(
-                    this.configuration.getPublicIpAddress());
-                log.debug("Removing public ip address from network interface " + from.id());
-                // Swap the pip
-                from.update()
-                    .withoutPrimaryPublicIpAddress()
-                    .apply();
-                log.debug("Public ip address removed from network interface " + from.id());
+    private boolean isNvaValid(NvaConfiguration nvaConfiguration) {
+        Preconditions.checkNotNull(nvaConfiguration, "nvaConfiguration cannot be null");
+        Map<String, String> networkInterfaces =
+            nvaConfiguration.getNetworkInterfaces().stream()
+            .collect(Collectors.toMap(c -> c.getName(),
+                c -> c.getId()));
+        Map<String, PublicIpAddress> publicIpAddresses = this.configuration.getPublicIpAddresses().stream()
+            .collect(Collectors.toMap(r -> r.getName(),
+                r -> this.azureClient.getPublicIpAddressById(r.getId())));
 
-                log.debug("Adding public ip address to network interface " + to.id());
-                to.update()
-                    .withExistingPrimaryPublicIpAddress(publicIpAddress)
-                    .apply();
-                log.debug("Added public ip address to network interface " + to.id());
-            });
+        if (publicIpAddresses.values().stream()
+            .filter(p -> !p.hasAssignedNetworkInterface())
+            .count() > 0) {
+            // One of the PublicIpAddress resources is not attached.  A repair is needed.
+            return false;
+        }
+
+        for (Map.Entry<String, PublicIpAddress> publicIpAddressEntry : publicIpAddresses.entrySet()) {
+            String networkInterfaceId = networkInterfaces.get(publicIpAddressEntry.getKey());
+            if (!publicIpAddressEntry.getValue()
+                .getAssignedNetworkInterfaceIpConfiguration()
+                .parent().id().equals(networkInterfaceId)) {
+                // One of the PublicIpAddresses assigned to a different NVA.  A repair is needed.
+                return false;
+            }
+        }
+
+        Set<String> privateIpAddresses = networkInterfaces.values().stream()
+            .map(id -> this.azureClient.getNetworkInterfaceById(id).primaryPrivateIp())
+            .collect(Collectors.toSet());
+        Set<String> nextHopIpAddresses = this.configuration.getRouteTables().stream()
+            .map(id -> this.azureClient.getRouteTableById(id))
+            .flatMap(rt -> rt.routes().values().stream()
+                .filter(r -> r.nextHopType().equals(RouteNextHopType.VIRTUAL_APPLIANCE))
+                .map(r -> r.nextHopIpAddress()))
+            .distinct()
+            .collect(Collectors.toSet());
+        nextHopIpAddresses.removeAll(privateIpAddresses);
+        if (!nextHopIpAddresses.isEmpty()) {
+            // One of the routes is pointing to a different NVA.  A repair is needed.
+            return false;
+        }
+
+        return true;
     }
 
     @Override
-    public void init(MonitorConfiguration configuration) throws Exception {
-        Preconditions.checkNotNull(configuration, "config cannot be null");
-        this.configuration = AzureProbeMonitorConfiguration.create(configuration);
-        failures = 0;
-        initializeAzure();
-        this.configuration.validate(this.azureClient);
+    //public void init(MonitorConfiguration configuration) throws Exception {
+    public void init() throws Exception {
+//        Preconditions.checkNotNull(configuration, "config cannot be null");
+//        this.configuration = AzureProbeMonitorConfiguration.create(configuration);
+        this.failures = 0;
+//        initializeAzure();
+//        this.configuration.validate(this.azureClient);
         int currentNvaIndex = this.getCurrentNvaIndex();
+        if (currentNvaIndex == -1) {
+            throw new UnsupportedOperationException("Active NVA was not found");
+        }
+
         this.nvaConfigurations = com.microsoft.azure.practices.nvadaemon.collect.Iterators.currentPeekingIterator(
             Iterators.peekingIterator(Iterators.cycle(this.configuration.getNvaConfigurations())));
         // This needs to be one greater than the current index, since the iterator is at the beginning.
         Iterators.advance(this.nvaConfigurations, currentNvaIndex + 1);
+        NvaConfiguration current = this.nvaConfigurations.current();
+        if (!this.isNvaValid(current)) {
+            this.migrateAzureResources(current);
+        }
     }
 
     @Override
@@ -282,26 +301,25 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         try {
             NvaConfiguration current = this.nvaConfigurations.current();
             try (SocketChannel channel = SocketChannel.open()) {
-                //channel.connect(current.getProbeSocketAddress());
                 channel.socket().connect(current.getProbeSocketAddress(),
                     this.configuration.getProbeConnectTimeout());
             }
 
             // If this works, we want to reset any previous failures.
-            failures = 0;
+            this.failures = 0;
         } catch (IOException e) {
             log.info("probe() threw an exception", e);
-            failures++;
+            this.failures++;
         }
 
-        return failures < this.configuration.getNumberOfFailuresThreshold();
+        return this.failures < this.configuration.getNumberOfFailuresThreshold();
     }
 
     @Override
     public void execute() {
         log.info("Probe failure.  Executing failure action.");
-        migrateAzureResources();
-        failures = 0;
+        this.migrateAzureResources(this.nvaConfigurations.next());
+        this.failures = 0;
     }
 
     @Override
@@ -318,6 +336,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
     public void close() throws Exception {
         if (this.azureClient != null) {
             this.azureClient.close();
+            this.azureClient = null;
         }
     }
 }
