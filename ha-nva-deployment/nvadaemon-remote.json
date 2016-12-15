@@ -1,6 +1,6 @@
 {
     "zookeeper": {
-        "connectionString": "lin-nva1:2182,lin-nva1:2183,lin-nva1:2184,lin-nva2:2184,lin-nva2:2185",
+        "connectionString": "docker1:2181,docker2:2182,docker3:2183",
         "retrySleepTimeMs": 1000,
         "numberOfRetries": 5,
         "leaderSelectorPath": "/leader-election-remote"
@@ -10,34 +10,33 @@
         "monitors": [
             {
                 "monitorClass": "com.microsoft.azure.practices.nvadaemon.AzureProbeMonitor",
-                "settings": {
-                    "subscriptionId": "",
-                    "clientId": "",
-                    "tenantId": "",
-                    "keyStorePath": "/nvabin/symnva.jks",
-                    "keyStorePassword": "passwordforkeystore",
-                    "certificatePassword": "passwordforcertificate",
-                    "numberOfFailuresThreshold": 3,
-                    "publicIpAddress": "",
-                    "routeTables": [
-                        "",
-                        ""
-                    ],
-                    "nvas": [
-                        {
-                            "publicIpNetworkInterface": "",
-                            "routeNetworkInterface": "",
-                            "probeNetworkInterface": "",
-                            "probePort": 443
-                        },
-                        {
-                            "publicIpNetworkInterface": "",
-                            "routeNetworkInterface": "",
-                            "probeNetworkInterface": "",
-                            "probePort": 443
-                        }
-                    ]
-                }
+              "settings": {
+                "subscriptionId": "628dad04-b5d1-4f10-b3a4-dc61d88cf97c",
+                "clientId": "10686b6e-b797-4f4f-9e5d-56b6aaa3b377",
+                "tenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+                "keyStorePath": "/nvabin/symnva.jks",
+                "keyStorePassword": "P@ssw0rd",
+                "certificatePassword": "P@ssw0rd",
+                "numberOfFailuresThreshold": 3,
+                "publicIpAddress": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/publicIPAddresses/ha-nva-pip",
+                "routeTables": [
+                  "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/routeTables/ha-nva-udr"
+                ],
+                "nvas": [
+                  {
+                    "publicIpNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm1-nic1",
+                    "routeNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm1-nic1",
+                    "probeNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm1-nic1",
+                    "probePort": 9010
+                  },
+                  {
+                    "publicIpNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm2-nic1",
+                    "routeNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm2-nic1",
+                    "probeNetworkInterface": "/subscriptions/628dad04-b5d1-4f10-b3a4-dc61d88cf97c/resourceGroups/ha-nva-rg/providers/Microsoft.Network/networkInterfaces/ha-nva-vm2-nic1",
+                    "probePort": 9010
+                  }
+                ]
+              }
             }
         ]
     }
