@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.microsoft.azure.practices.nvadaemon.config.ConfigurationException;
 import com.microsoft.azure.practices.nvadaemon.config.NvaDaemonConfiguration;
 import com.microsoft.azure.practices.nvadaemon.config.ZookeeperConfiguration;
+import org.apache.commons.cli.*;
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonInitException;
@@ -13,6 +14,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -55,8 +57,7 @@ public class NvaDaemon implements Daemon {
     public void init(DaemonContext daemonContext) throws DaemonInitException {
         Preconditions.checkNotNull(daemonContext, "daemonContext cannot be null");
         try {
-            this.configuration = NvaDaemonConfiguration.parseArguments(
-                daemonContext.getArguments());
+            this.configuration = parseArguments(daemonContext.getArguments());
         } catch (ConfigurationException e) {
             throw new DaemonInitException("Error processing command line arguments", e);
         }
@@ -147,5 +148,49 @@ public class NvaDaemon implements Daemon {
     @Override
     public void destroy() {
         ourTask.set(null);
+    }
+
+    private static NvaDaemonConfiguration parseArguments(String[] args) throws ConfigurationException {
+        CommandLine commandLine = parseCommandLine(args);
+        if (commandLine == null) {
+            // Invalid options, so just exit
+            throw new ConfigurationException("Error parsing command line arguments");
+        }
+
+        String configurationFile = commandLine.getOptionValue("config");
+        try (FileReader reader = new FileReader(configurationFile)) {
+            return NvaDaemonConfiguration.parseConfig(reader);
+        } catch (IOException ioe) {
+            throw new ConfigurationException("Error reading configuration file" +
+                configurationFile, ioe);
+        }
+    }
+
+    private static CommandLine parseCommandLine(String[] args) {
+        Options options = new Options();
+        options.addOption(Option.builder("c")
+            .longOpt("config")
+            .argName("config")
+            .hasArg()
+            .required()
+            .desc("Path to configuration file")
+            .build());
+        CommandLineParser parser = new DefaultParser();
+        CommandLine commandLine = null;
+        try {
+            commandLine = parser.parse(options, args);
+        } catch (ParseException e) {
+            HelpFormatter formatter = new HelpFormatter();
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter writer = new PrintWriter(stringWriter);
+            try {
+                formatter.printHelp(writer, 74, "nvadaemon", null, options, 1, 3, null, false);
+                log.error(stringWriter.toString());
+            } finally {
+                writer.close();
+            }
+        }
+
+        return commandLine;
     }
 }

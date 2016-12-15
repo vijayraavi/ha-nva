@@ -14,7 +14,6 @@ import java.security.cert.X509Certificate;
 
 public class AzureClientIdCertificateCredentialFactoryImpl implements AsymmetricKeyCredentialFactory {
 
-    private AzureProbeMonitorConfiguration configuration;
     private String clientId;
     private String keyStorePath;
     private String keyStorePassword;
@@ -41,8 +40,6 @@ public class AzureClientIdCertificateCredentialFactoryImpl implements Asymmetric
     public AsymmetricKeyCredential create(String resource) throws GeneralSecurityException {
         // We don't care about the resource in our scenario, so we will ignore it.
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-//        AzureConfiguration.ServicePrincipal servicePrincipal =
-//            this.configuration.getAzureConfiguration().getServicePrincipal();
 
         try (FileInputStream inputStream = new FileInputStream(
             this.keyStorePath)) {
@@ -50,11 +47,10 @@ public class AzureClientIdCertificateCredentialFactoryImpl implements Asymmetric
             // Assuming there is only one entry here.
             String alias = keyStore.aliases().nextElement();
             KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry)keyStore.getEntry(alias,
-                new KeyStore.PasswordProtection(
-                    this.certificatePassword.toCharArray()));
+                new KeyStore.PasswordProtection(this.certificatePassword.toCharArray()));
             AsymmetricKeyCredential credential = AsymmetricKeyCredential.create(
                 this.clientId, privateKeyEntry.getPrivateKey(),
-                (X509Certificate) privateKeyEntry.getCertificate());
+                (X509Certificate)privateKeyEntry.getCertificate());
             return credential;
         } catch (IOException e) {
             throw new GeneralSecurityException("Could not load KeyStore file", e);

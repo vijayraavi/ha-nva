@@ -1,7 +1,6 @@
 package com.microsoft.azure.practices.nvadaemon;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.CloudException;
@@ -23,15 +22,12 @@ import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class AzureProbeMonitor implements ScheduledMonitor {
 
-    private final Logger log = LoggerFactory.getLogger(AzureProbeMonitor.class);
-    private int failures;
+    private static final Logger log = LoggerFactory.getLogger(AzureProbeMonitor.class);
+    private int failures = 0;
     private AzureClient azureClient;
     private AzureProbeMonitorConfiguration configuration;
     private CurrentPeekingIterator<NvaConfiguration> nvaConfigurations;
@@ -40,15 +36,17 @@ public class AzureProbeMonitor implements ScheduledMonitor {
         throws ConfigurationException {
         this.configuration = AzureProbeMonitorConfiguration.create(
             Preconditions.checkNotNull(monitorConfiguration, "monitorConfiguration cannot be null"));
-        this.failures = 0;
-        initializeAzure();
+        this.azureClient = createAzureClient(this.configuration);
         this.configuration.validate(this.azureClient);
     }
 
-    private void initializeAzure() throws CloudException {
+    private static AzureClient createAzureClient(AzureProbeMonitorConfiguration azureProbeMonitorConfiguration) throws CloudException {
+        Preconditions.checkNotNull(azureProbeMonitorConfiguration,
+            "azureProbeMonitorConfiguration cannot be null");
         try {
             AzureTokenCredentials credentials;
-            AzureConfiguration azureConfiguration = this.configuration.getAzureConfiguration();
+            AzureConfiguration azureConfiguration =
+                azureProbeMonitorConfiguration.getAzureConfiguration();
             ServicePrincipal servicePrincipal =
                 azureConfiguration.getServicePrincipal();
 
@@ -71,10 +69,10 @@ public class AzureProbeMonitor implements ScheduledMonitor {
                 servicePrincipal.getAuthenticationMode());
             }
 
-            this.azureClient = AzureClient.create(credentials,
+            return AzureClient.create(credentials,
                 azureConfiguration.getSubscriptionId());
         } catch (CloudException e) {
-            this.log.error("Exception creating Azure client", e);
+            log.error("Exception creating Azure client", e);
             throw e;
         }
     }
@@ -164,9 +162,9 @@ public class AzureProbeMonitor implements ScheduledMonitor {
             }
 
             if (update != null) {
-                this.log.debug("Updating route table" + routeTable.id());
+                log.debug("Updating route table" + routeTable.id());
                 update.apply();
-                this.log.debug("Updated route table" + routeTable.id());
+                log.debug("Updated route table" + routeTable.id());
             }
         }
     }
@@ -196,31 +194,31 @@ public class AzureProbeMonitor implements ScheduledMonitor {
                 } else if (!publicIpAddressNetworkInterface.id().equals(
                         toNetworkInterface.id())) {
                     migratePip = true;
-                    this.log.debug("Removing public ip address from network interface " +
+                    log.debug("Removing public ip address from network interface " +
                         publicIpAddressNetworkInterface.id());
 
                     publicIpAddressNetworkInterface.update()
                         .withoutPrimaryPublicIpAddress()
                         .apply();
-                    this.log.debug("Public ip address removed from network interface " +
+                    log.debug("Public ip address removed from network interface " +
                         publicIpAddressNetworkInterface.id());
 
-                    this.log.debug("Adding public ip address to network interface " +
+                    log.debug("Adding public ip address to network interface " +
                         toNetworkInterface.id());
                     toNetworkInterface.update()
                         .withExistingPrimaryPublicIpAddress(publicIpAddress)
                         .apply();
-                    this.log.debug("Added public ip address to network interface " +
+                    log.debug("Added public ip address to network interface " +
                         toNetworkInterface.id());
                 }
 
                 if (migratePip) {
-                    this.log.debug("Adding public ip address to network interface " +
+                    log.debug("Adding public ip address to network interface " +
                         toNetworkInterface.id());
                     toNetworkInterface.update()
                         .withExistingPrimaryPublicIpAddress(publicIpAddress)
                         .apply();
-                    this.log.debug("Added public ip address to network interface " +
+                    log.debug("Added public ip address to network interface " +
                         toNetworkInterface.id());
                 }
             }
@@ -279,7 +277,7 @@ public class AzureProbeMonitor implements ScheduledMonitor {
 //        Preconditions.checkNotNull(configuration, "config cannot be null");
 //        this.configuration = AzureProbeMonitorConfiguration.create(configuration);
         this.failures = 0;
-//        initializeAzure();
+//        createAzureClient();
 //        this.configuration.validate(this.azureClient);
         int currentNvaIndex = this.getCurrentNvaIndex();
         if (currentNvaIndex == -1) {

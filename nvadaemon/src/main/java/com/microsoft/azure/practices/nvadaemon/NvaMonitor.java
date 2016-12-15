@@ -100,7 +100,7 @@ public class NvaMonitor implements AutoCloseable {
                         await();
                     } catch (InterruptedException e) {
                         log.warn("Monitor lock interrupted", e);
-                        Thread.currentThread().interrupt();
+//                        Thread.currentThread().interrupt();
                     } finally {
                         lock.unlock();
                     }
@@ -129,11 +129,9 @@ public class NvaMonitor implements AutoCloseable {
             Constructor<?> ctor = clazz.getConstructor(MonitorConfiguration.class);
             if (ScheduledMonitor.class.isAssignableFrom(clazz)) {
                 result = new ScheduledMonitorCallable(
-                    //(ScheduledMonitor) ctor.newInstance(), monitorConfiguration);
                     (ScheduledMonitor) ctor.newInstance(monitorConfiguration));
             } else if (Monitor.class.isAssignableFrom(clazz)) {
                 result = new MonitorCallable(
-                    //(Monitor) ctor.newInstance(), monitorConfiguration);
                     (Monitor) ctor.newInstance(monitorConfiguration));
             } else {
                 innerException = new ClassCastException(
@@ -146,7 +144,7 @@ public class NvaMonitor implements AutoCloseable {
             log.error("Class " + className + " was not found", e);
             innerException = e;
         } catch (NoSuchMethodException e) {
-            log.error("No default constructor found for " + className, e);
+            log.error("No valid constructor found for " + className, e);
             innerException = e;
         }
 
@@ -158,7 +156,9 @@ public class NvaMonitor implements AutoCloseable {
     }
 
     public synchronized Future<Void> start() throws NvaMonitorException {
-        Preconditions.checkState(!executorService.isShutdown(), "Already started");
+        //log.debug("executorService.isShutdown(): " + executorService.isShutdown());
+        //Preconditions.checkState(!executorService.isShutdown(), "Already started");
+        Preconditions.checkState(!this.isRunning, "Already started");
         // We need to eventually support multiple monitors, but for now, just grab the
         // first one.
         MonitorConfiguration monitorConfiguration =
