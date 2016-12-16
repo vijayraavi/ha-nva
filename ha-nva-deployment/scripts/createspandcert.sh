@@ -15,7 +15,7 @@ func_err() {
         exit $?
 }
 
-trap "{ func_err()  }" ERR
+trap  func_err  ERR
 
 application=""
 subscription=""
@@ -92,7 +92,7 @@ azure role create --inputfile customAzureRole.json
 roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
 
 echo  ${roleid}
-azure role assignment create --objectId ${objectid} -o "HA-NVA Operator" 
+azure role assignment create --objectId ${objectid} -o "NVA Operator" 
 #-c /subscriptions/${subscription}
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')

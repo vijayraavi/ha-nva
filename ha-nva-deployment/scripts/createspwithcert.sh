@@ -11,16 +11,14 @@
 
 func_err()
 {
-        echo "Error At line - $1"
-        echo "last command"
-        echo ${command}
-        exit $?
+	echo "Error At line - $1"
+	echo "last command"
+	echo ${command}
+	exit $?
 }
 
-trap "{ func_err()  \${LINENO} ; }" ERR
 
-
-trap  'echo error executing command, echo  ${command}' ERR
+trap  func_err  ERR
 
 
 application=""
@@ -31,16 +29,19 @@ export command=""
 for i in "$@"
 do
 case $i in
-    -s=*|--subscriptionId=*)
-    subscription="${i#*=}"
+    -s|--subscriptionId)
+    subscription="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
-    -a=*|--appName=*)
-    application="${i#*=}"
+    -a|--appName)
+    application="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
-    -c=*|--certSubject=*)
-    certificatesubject="${i#*=}"
+    -c|--certificateSubject)
+    certificatesubject="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
     --default)
@@ -51,6 +52,7 @@ case $i in
             # unknown option
     ;;
 esac
+
 done
 
 
@@ -59,6 +61,7 @@ if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject
   echo "./createspwithcert.sh -s=subscriptionid -a=applicationName -c=certsubjectName"
   exit
 fi
+
 
 openssl pkcs12 -in $certificatesubject -out nvacert.pem -nodes
 
@@ -76,14 +79,14 @@ azure ad app create -n $application --home-page http://${application} \
 
 
 appid=$(azure ad app show ${application} \
--i "http://${application}" | awk '{if($2 ~ "AppId") print $3}')
+-i "http://${application}" --json |  jq -r '.[0].appId')
 
 echo $appid
 
 azure ad sp create -a $appid
 
 objectid=$(azure ad sp show \
--n  http://${application} -v | awk '{if($2 ~ "Object") print $4}')
+-n  http://${application} --json | jq -r '.[0].objectId')
 
 sleep 30
 
@@ -94,11 +97,11 @@ azure role assignment create --objectId ${objectid} -o owner \
 
 
 
-tenant=$(azure account show | awk '{if($2 ~ "Tenant") print $5}')
+tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
 echo "Application: ${appid}"
-echo "Tenant: ${tenant}"
+echo "Tenant: ${tenant}" 
 echo "======================================================="
 
 
@@ -108,3 +111,10 @@ echo "commands executed successfully. to test run command below"
 echo "============================================================"
 
 echo "azure login --service-principal --tenant ${tenant}  -u ${appid} --certificate-file nvacert.pem --thumbprint ${thumb}"
+
+
+
+
+
+
+
