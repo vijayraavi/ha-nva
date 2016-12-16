@@ -1,7 +1,7 @@
 #! /bin/bash
 ##################################################################################################
 #     bash script to create the certificates and service principal
-#     ./createspwithcertificate.sh -s={subscriptionid} -a=logicalappname -c=certsubjectname
+#     ./createspwithcertificate.sh -s {subscriptionid} -a logicalappname -c certsubjectname
 #
 #
 #

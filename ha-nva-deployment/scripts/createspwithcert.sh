@@ -2,7 +2,7 @@
 ##################################################################################################
 #     bash script to create service principal with provided certificate
 #     certificate in pfx format needs to be provided
-#     ./createspwithcertificate.sh -s={subscriptionid} -a=logicalappname -c=certfile.pfx
+#     ./createspwithcertificate.sh -s {subscriptionid} -a=logicalappname -c certfile.pfx
 #
 #
 #
@@ -101,7 +101,7 @@ tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
 echo "Application: ${appid}"
-echo "Tenant: ${tenant}" 
+echo "Tenant: ${tenant}"
 echo "======================================================="
 
 
@@ -111,10 +111,3 @@ echo "commands executed successfully. to test run command below"
 echo "============================================================"
 
 echo "azure login --service-principal --tenant ${tenant}  -u ${appid} --certificate-file nvacert.pem --thumbprint ${thumb}"
-
-
-
-
-
-
-
