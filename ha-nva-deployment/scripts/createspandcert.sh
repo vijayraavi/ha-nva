@@ -15,6 +15,7 @@ func_err() {
         exit $?
 }
 
+
 trap  func_err  ERR
 
 application=""
@@ -54,7 +55,6 @@ done
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ]  ; then
   echo "missing parameters usage"
   echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
-  exit
 fi
 
 openssl req -x509 -days 3650 -newkey rsa:2048 -out cert.pem -nodes -subj "/CN=${certificatesubject}"
@@ -92,14 +92,14 @@ azure role create --inputfile customAzureRole.json
 roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
 
 echo  ${roleid}
-azure role assignment create --objectId ${objectid} -o "NVA Operator" 
+azure role assignment create --objectId ${objectid} -o "NVA Operator"
 #-c /subscriptions/${subscription}
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
 echo "Application Id : ${appid}"
-echo "Tenant Id      : ${tenant}" 
+echo "Tenant Id      : ${tenant}"
 echo "======================================================="
 
 
@@ -109,10 +109,3 @@ echo "commands executed successfully. to test run command below"
 echo "============================================================"
 
 echo "azure login --service-principal --tenant ${tenant}  -u ${appid} --certificate-file nvacert.pem --thumbprint ${thumb}"
-
-
-
-
-
-
-

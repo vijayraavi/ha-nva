@@ -1,59 +1,112 @@
 package com.microsoft.azure.practices.nvadaemon.config;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.microsoft.azure.practices.nvadaemon.AzureClient;
-import com.microsoft.azure.practices.nvadaemon.OperatingMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-public class AzureProbeMonitorConfiguration {
+public class AzureProbeMonitorConfiguration implements ConfigurationValidation {
     private static final Logger log = LoggerFactory.getLogger(AzureProbeMonitorConfiguration.class);
 
     private static final int DEFAULT_PROBE_POLLING_INTERVAL = 3000;
     private static final int DEFAULT_NUMBER_OF_FAILURES_THRESHOLD = 3;
     private static final int DEFAULT_PROBE_CONNECT_TIMEOUT = 10000;
 
-    private String subscriptionId;
-    private String clientId;
-    private String tenantId;
-    private String keyStorePath;
-    private String keyStorePassword;
-    private String certificatePassword;
-    private String publicIpAddress;
     private List<String> routeTables = new ArrayList<>();
-    @JsonProperty("nvas")
+    private List<NamedResourceId> publicIpAddresses = new ArrayList<>();
     private List<NvaConfiguration> nvaConfigurations = new ArrayList<>();
+    private AzureConfiguration azureConfiguration;
 
     private int numberOfFailuresThreshold = DEFAULT_NUMBER_OF_FAILURES_THRESHOLD;
     private int probePollingInterval = DEFAULT_PROBE_POLLING_INTERVAL;
     private int probeConnectTimeout = DEFAULT_PROBE_CONNECT_TIMEOUT;
 
-
-    @JsonIgnore
-    private OperatingMode operatingMode;
-
     public static AzureProbeMonitorConfiguration create(MonitorConfiguration monitorConfiguration)
         throws ConfigurationException {
-        ObjectMapper mapper = new ObjectMapper()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        AzureProbeMonitorConfiguration configuration = mapper.convertValue(
-            Preconditions.checkNotNull(monitorConfiguration,
-                "monitorConfiguration cannot be null").getSettings(),
-            AzureProbeMonitorConfiguration.class);
-        configuration.validate();
-        return configuration;
+        try {
+            ObjectMapper mapper = new ObjectMapper()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+            AzureProbeMonitorConfiguration configuration = mapper.convertValue(
+                Preconditions.checkNotNull(monitorConfiguration,
+                    "monitorConfiguration cannot be null").getSettings(),
+                AzureProbeMonitorConfiguration.class);
+            return configuration;
+        } catch (IllegalArgumentException e) {
+            throw new ConfigurationException("Error parsing settings", e);
+        }
     }
 
-    public AzureProbeMonitorConfiguration() {
+    @JsonCreator
+    public AzureProbeMonitorConfiguration(@JsonProperty("azure")AzureConfiguration azureConfiguration,
+                                          @JsonProperty("nvas")List<NvaConfiguration> nvaConfigurations,
+                                          @JsonProperty("routeTables")List<String> routeTables,
+                                          @JsonProperty("publicIpAddresses")List<NamedResourceId> publicIpAddresses,
+                                          @JsonProperty("numberOfFailuresThreshold")Integer numberOfFailuresThreshold,
+                                          @JsonProperty("probeConnectTimeout")Integer probeConnectTimeout,
+                                          @JsonProperty("probePollingInterval")Integer probePollingInterval) {
+        this.azureConfiguration = Preconditions.checkNotNull(azureConfiguration,
+            "azureConfiguration cannot be null");
+        this.nvaConfigurations = Preconditions.checkNotNull(nvaConfigurations,
+            "nvaConfigurations cannot be null");
+        if (routeTables != null) {
+            this.routeTables = routeTables;
+        }
+
+        if (publicIpAddresses != null) {
+            this.publicIpAddresses = publicIpAddresses;
+        }
+
+        if (numberOfFailuresThreshold != null) {
+            this.numberOfFailuresThreshold = numberOfFailuresThreshold;
+        }
+
+        if (probeConnectTimeout != null) {
+            this.probeConnectTimeout = probeConnectTimeout;
+        }
+
+        if (probePollingInterval != null) {
+            this.probePollingInterval = probePollingInterval;
+        }
+
+        if (this.nvaConfigurations.size() == 0) {
+            throw new IllegalArgumentException("No nva configurations found");
+        }
+
+        // Use the first NVA configuration to make sure we don't have misnamed NVA
+        // interfaces.
+        List<Set<String>> allNetworkInterfaceNames = this.nvaConfigurations.stream()
+            .map(c -> c.getNetworkInterfaces().stream()
+                .map(ni -> ni.getName())
+                .collect(Collectors.toSet()))
+            .collect(Collectors.toList());
+        Set<String> firstNetworkInterfaceNames = allNetworkInterfaceNames.get(0);
+        for (Set<String> networkInterfaceNames : allNetworkInterfaceNames) {
+            Set<String> symmetricDifference = Sets.symmetricDifference(
+                firstNetworkInterfaceNames, networkInterfaceNames);
+            if (!symmetricDifference.isEmpty()) {
+                throw new IllegalArgumentException("Resource network interface names mismatch: " +
+                    symmetricDifference.stream()
+                        .collect(Collectors.joining(", ")));
+            }
+        }
+
+        if ((this.routeTables.size() == 0) && (this.publicIpAddresses.size() == 0)) {
+            throw new IllegalArgumentException(
+                "At least one RouteTable or PublicIpAddress must be configured");
+        }
     }
+
+    public AzureConfiguration getAzureConfiguration() { return this.azureConfiguration; }
 
     public int getProbeConnectTimeout() { return this.probeConnectTimeout; }
 
@@ -61,73 +114,37 @@ public class AzureProbeMonitorConfiguration {
 
     public int getNumberOfFailuresThreshold() { return this.numberOfFailuresThreshold; }
 
-    public String getSubscriptionId() { return this.subscriptionId; }
-
-    public String getClientId() { return this.clientId; }
-
-    public String getTenantId() { return this.tenantId; }
-
-    public String getPublicIpAddress() { return this.publicIpAddress; }
-
     public List<String> getRouteTables() { return this.routeTables; }
 
-    public String getKeyStorePath() { return this.keyStorePath; }
-
-    public String getKeyStorePassword() { return this.keyStorePassword; }
-
-    public String getCertificatePassword() { return this.certificatePassword; }
-
-    public OperatingMode getOperatingMode() { return this.operatingMode; }
-
-    private void validate() throws ConfigurationException {
-        for (NvaConfiguration nvaConfiguration : this.nvaConfigurations) {
-            nvaConfiguration.validate();
-        }
-
-        // We need to validate all of the configurations now based on the operating mode.
-        // We still need to validate the resources specified in the config with Azure.
-        NvaConfiguration first = this.nvaConfigurations.get(0);
-        List<NvaConfiguration> invalidConfigurations = this.nvaConfigurations.stream()
-            .filter(c -> c.getOperatingMode() != first.getOperatingMode())
-            .collect(Collectors.toList());
-        if (invalidConfigurations.size() != 0) {
-            throw new ConfigurationException(
-                "One or more nva configurations are invalid for operating mode " +
-                    first.getOperatingMode());
-        }
-
-        this.operatingMode = first.getOperatingMode();
-    }
-
-    public void validate(AzureClient azureClient)
-        throws ConfigurationException {
-        Preconditions.checkNotNull(azureClient, "azureClient cannot be null");
-        this.validate();
-
-        if (((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
-            (this.operatingMode == OperatingMode.ONLY_PIP)) &&
-            (!azureClient.checkExistenceById(this.publicIpAddress))) {
-            throw new IllegalArgumentException("publicIpAddress '" +
-                this.publicIpAddress + "' does not exist");
-        }
-
-        if ((this.operatingMode == OperatingMode.PIP_AND_ROUTE) ||
-            (this.operatingMode == OperatingMode.ONLY_ROUTE)) {
-            List<String> invalidRouteTables = this.routeTables.stream()
-                .filter(id -> azureClient.getRouteTableById(id) == null)
-                .collect(Collectors.toList());
-            if (invalidRouteTables.size() > 0) {
-                throw new ConfigurationException("Invalid routes in configuration: " +
-                invalidRouteTables.stream().collect(Collectors.joining(",")));
-            }
-        }
-
-        for (NvaConfiguration config : this.nvaConfigurations) {
-            config.validateAzureResources(azureClient);
-        }
-    }
+    public List<NamedResourceId> getPublicIpAddresses() { return this.publicIpAddresses; }
 
     public List<NvaConfiguration> getNvaConfigurations() {
         return this.nvaConfigurations;
+    }
+
+    public void validate(AzureClient azureClient) throws ConfigurationException {
+        Preconditions.checkNotNull(azureClient, "azureClient cannot be null");
+
+        for (NvaConfiguration config : this.nvaConfigurations) {
+            config.validate(azureClient);
+        }
+
+        List<String> invalidPublicIpAddresses = this.publicIpAddresses.stream()
+            .map(r -> r.getId())
+            .filter(id -> !azureClient.checkExistenceById(id))
+            .collect(Collectors.toList());
+        if (invalidPublicIpAddresses.size() > 0) {
+            throw new ConfigurationException("Invalid public ip address(es): " +
+                invalidPublicIpAddresses.stream().collect(Collectors.joining(", ")));
+        }
+
+        List<String> invalidRouteTables = this.routeTables.stream()
+            .filter(id -> !azureClient.checkExistenceById(id))
+            .collect(Collectors.toList());
+
+        if (invalidRouteTables.size() > 0) {
+            throw new ConfigurationException("Invalid route table(s): " +
+            invalidRouteTables.stream().collect(Collectors.joining(", ")));
+        }
     }
 }

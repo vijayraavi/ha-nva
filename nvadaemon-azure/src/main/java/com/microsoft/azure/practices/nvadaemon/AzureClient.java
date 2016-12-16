@@ -127,8 +127,16 @@ public interface AzureClient extends AutoCloseable {
         }
 
         public boolean checkExistenceById(String id) {
+            // TODO - There is an issue with the Java Azure SDK that causes a NullPointerException
+            // to be thrown when a resource doesn't exist, so we are going to trap it here so
+            // the workaround is not everywhere.  When this is fixed, remove this try/catch!
             Preconditions.checkArgument(!Strings.isNullOrEmpty(id), "id cannot be null or empty");
-            return this.azure.genericResources().getById(id) != null;
+            try {
+                return this.azure.genericResources().getById(id) != null;
+            } catch (NullPointerException e) {
+                log.warn("Caught SDK exception", e);
+                return false;
+            }
         }
         public <T extends GroupableResource> T getById(String id, SupportsGettingById<T> resources) {
             Preconditions.checkArgument(!Strings.isNullOrEmpty(id), "id cannot be null or empty");
