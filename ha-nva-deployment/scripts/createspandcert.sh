@@ -25,16 +25,19 @@ export command=""
 for i in "$@"
 do
 case $i in
-    -s=*|--subscriptionId=*)
-    subscription="${i#*=}"
+    -s|--subscriptionId)
+    subscription="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
-    -a=*|--appName=*)
-    application="${i#*=}"
+    -a|--appName)
+    application="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
-    -c=*|--certSubject=*)
-    certificatesubject="${i#*=}"
+    -c|--certificateSubject)
+    certificatesubject="$2"
+    shift # past argument=value
     shift # past argument=value
     ;;
     --default)
@@ -43,14 +46,14 @@ case $i in
     ;;
     *)
             # unknown option
-    ;;
+   ;;
 esac
-done
 
+done
 
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ]  ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s=subscriptionid -a=applicationName -c=certsubjectName"
+  echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
   exit
 fi
 
@@ -85,8 +88,8 @@ sleep 30
 
 echo $objectid
 #role=$(cat CustomAzureRole.json | jq '.Name')
-azure role create --inputfile CustomAzureRole.json
-roleid=$(azure role show -n "HA-NVA Operator" --json | jq '.[0].Id')
+azure role create --inputfile customAzureRole.json
+roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
 
 echo  ${roleid}
 azure role assignment create --objectId ${objectid} -o "HA-NVA Operator" 
