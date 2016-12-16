@@ -92,10 +92,12 @@ sleep 30
 
 echo $objectid
 
-azure role assignment create --objectId ${objectid} -o owner \
--c /subscriptions/${subscription}/
 
+azure role create --inputfile customAzureRole.json
+roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
 
+echo  ${roleid}
+azure role assignment create --objectId ${objectid} -o "NVA Operator"
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
