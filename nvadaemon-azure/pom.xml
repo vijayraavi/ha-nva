@@ -87,6 +87,22 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <mainClass>com.microsoft.azure.practices.nvadaemon.Main</mainClass>
+                    <commandlineArgs>-config ${project.basedir}/../../ha-nva-config-work/nvadaemon-local-new.json</commandlineArgs>
+                    <daemonThreadJoinTimeout>0</daemonThreadJoinTimeout>
+                    <systemProperties>
+                        <systemProperty>
+                            <key>log4j.configuration</key>
+                            <value>file:${project.build.directory}/log4j.properties</value>
+                        </systemProperty>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
                 <version>1.8</version>
