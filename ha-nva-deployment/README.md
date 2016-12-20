@@ -6,7 +6,7 @@ The Patterns and Practices team at Microsoft has created a solution to deploy ne
 
 In order to make it easier for customers to test the high availability solution, you can deploy a test environment by running a simple PowerShell script provided in GitHub. The test environment contains al resources shown belo, with the exception of the Zookeeper nodes.
 
-![](https.//docs.microsoft.com/en-us/azure/guidance/media/guidance-nva-ha/active-passive.png)
+![](https://docs.microsoft.com/en-us/azure/guidance/media/guidance-nva-ha/active-passive.png)
 
 The test environmentincludes.
 * a virtual network with four subnets.
@@ -25,7 +25,7 @@ The test environmentincludes.
 
 To deploy the test architecture, follow these steps.
 
-1. Either use git to clone the [https.//github.com/mspnp/ha-nva](https.//github.com/mspnp/ha-nva) repository on your local machine, or download a zip of the files and extract them to a local directory.
+1. Either use git to clone the [https://github.com/mspnp/ha-nva](https://github.com/mspnp/ha-nva) repository on your local machine, or download a zip of the files and extract them to a local directory.
 2. In Windows Powershell, navigate to the `ha-nva/ha-nva-deployment/sample-test-environment` directory and execute the following command.
     ```powershell
     ./Deploy.ps1 <subscriptionID> <region>
@@ -63,7 +63,7 @@ Generally, the deployment has the following stages.
 
 The deployment requires three or more VMs running Canonical Ubuntu Server 14.04 with the Azure CLI, Docker, the latest Java SDK, and jq (a JSON parser) installed. If you installed the test architecture above, a deployment is available that you can use to deploy the VMs with an extension to install all of the required resources. To keep things clear, we will refer to these VMs as Docker VM1, Docker VM2, and Docker VM3 from now on. You can deploy these VMs manuallly, or you can use the sample deployment provided in GitHub. To use the sample deployment, execute the steps below.
 
-1. Either use git to clone the [https.//github.com/mspnp/ha-nva](https.//github.com/mspnp/ha-nva) repository on your local machine, or download a zip of the files and extract them to a local directory. If you deployed the test environment, you can skip this stp.
+1. Either use git to clone the [https://github.com/mspnp/ha-nva](https.//github.com/mspnp/ha-nva) repository on your local machine, or download a zip of the files and extract them to a local directory. If you deployed the test environment, you can skip this stp.
 2. In Windows Powershell, navigate to the `ha-nva/ha-nva` directory and execute the following command. 
     ```powershell
     ./Deploy.ps1 <subscriptionID> <region> <resourceGroupName>
