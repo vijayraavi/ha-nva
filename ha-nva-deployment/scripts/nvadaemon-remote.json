@@ -1,0 +1,78 @@
+{
+    "zookeeper": {
+        "connectionString": "zookeeper1:2181,zookeeper2:2182,zookeeper3:2183",
+        "retrySleepTime": 1000,
+        "numberOfRetries": 5,
+        "leaderSelectorPath": "/leader-election"
+    },
+    "daemon": {
+        "shutdownAwaitTime": 10000,
+        "monitors": [
+            {
+                "monitorClass": "com.company.CustomProbeMonitor",
+                "settings": {
+                    "azure": {
+                        "subscriptionId": "xxxx-xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                        "servicePrincipal": {
+                            "clientId": "yyyy-yyyyyyyy-yyyy-yyyy-yyyyyyyyyyyy",
+                            "tenantId": "zzzz-zzzzzzzz-zzzz-zzzz-zzzzzzzzzzzz",
+                            "keyStorePath": "<path_to_keystore>",
+                            "keyStorePassword": "<keystore_password>",
+                            "certificatePassword": "<certificate_password>"
+                        }
+                    },
+                    "numberOfFailuresThreshold": 3,
+                    "probeConnectTimeout": 3000,
+                    "routeTables": [
+                        "<route_table_1_id>",
+                        "<route_table_2_id>"
+                    ],
+                    "publicIpAddresses": [
+                        {
+                            "name": "nic1",
+                            "id": "<public_ip_address_id"
+                        }
+                    ],
+                    "nvas": [
+                        {
+                            "networkInterfaces": [
+                                {
+                                    "name": "nic1",
+                                    "id": "<public_ip_address_network_interface>"
+                                },
+                                {
+                                    "name": "nic2",
+                                    "id": "<route_table_network_interface>"
+                                },
+                                {
+                                    "name": "nic3",
+                                    "id": "<route_table_network_interface>"
+                                }
+                            ],
+                            "probeNetworkInterface": "<probe_network_interface>",
+                            "probePort": 54321
+                        },
+                        {
+                            "networkInterfaces": [
+                                {
+                                    "name": "nic1",
+                                    "id": "<public_ip_address_network_interface>"
+                                },
+                                {
+                                    "name": "nic2",
+                                    "id": "<route_table_network_interface>"
+                                },
+                                {
+                                    "name": "nic3",
+                                    "id": "<route_table_network_interface>"
+                                }
+                            ],
+                            "probeNetworkInterface": "<probe_network_interface>",
+                            "probePort": 54321
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
