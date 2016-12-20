@@ -1,22 +1,25 @@
 #! /bin/bash
 ##################################################################################################
-#     bash script to create the certificates and service principal
-#     ./createspwithcertificate.sh -s {subscriptionid} -a logicalappname -c certsubjectname
+#     bash script to create service principal with provided certificate
+#     certificate in pfx format needs to be provided
+#     ./createspwithcertificate.sh -s {subscriptionid} -a=logicalappname -c certfile.pfx
 #
 #
 #
 #
 ###################################################################################################
 
-func_err() {
-        echo ""
-        echo "Error executing Command"
-        echo ${command}
-        exit $?
+func_err()
+{
+	echo "Error At line - $1"
+	echo "last command"
+	echo ${command}
+	exit $?
 }
 
 
 trap  func_err  ERR
+
 
 application=""
 subscription=""
@@ -47,27 +50,28 @@ case $i in
     ;;
     *)
             # unknown option
-   ;;
+    ;;
 esac
 
 done
 
+
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ]  ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
+  echo "./createspwithcert.sh -s=subscriptionid -a=applicationName -c=certsubjectName"
+  exit
 fi
 
-openssl req -x509 -days 3650 -newkey rsa:2048 -out cert.pem -nodes -subj "/CN=${certificatesubject}"
 
-openssl pkcs12 -export -in cert.pem -inkey privkey.pem -out nva.pfx
-keytool -importkeystore -srckeystore nva.pfx -srcstoretype pkcs12 -destkeystore nva.jks -deststoretype JKS
+openssl pkcs12 -in $certificatesubject -out nvacert.pem -nodes
 
-cat privkey.pem cert.pem > nvacert.pem
+keytool -importkeystore -srckeystore $certificatesubject -srcstoretype pkcs12 -destkeystore nva.jks -deststoretype JKS
 
-echo $(grep -v -e CERTIFICATE cert.pem) > cert.txt
+
+echo $(grep -v -e CERTIFICATE nvacert.pem) > cert.txt
 
 cert=`cat cert.txt`
-
+echo $cert
 azure account set  "${subscription}"
 
 azure ad app create -n $application --home-page http://${application} \
@@ -75,7 +79,7 @@ azure ad app create -n $application --home-page http://${application} \
 
 
 appid=$(azure ad app show ${application} \
--i "http://${application}"  --json |  jq -r '.[0].appId')
+-i "http://${application}" --json |  jq -r '.[0].appId')
 
 echo $appid
 
@@ -87,19 +91,19 @@ objectid=$(azure ad sp show \
 sleep 30
 
 echo $objectid
-#role=$(cat CustomAzureRole.json | jq '.Name')
+
+
 azure role create --inputfile customAzureRole.json
 roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
 
 echo  ${roleid}
 azure role assignment create --objectId ${objectid} -o "NVA Operator"
-#-c /subscriptions/${subscription}
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
-echo "Application Id : ${appid}"
-echo "Tenant Id      : ${tenant}"
+echo "Application: ${appid}"
+echo "Tenant: ${tenant}"
 echo "======================================================="
 
 
