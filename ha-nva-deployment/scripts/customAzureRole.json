@@ -16,5 +16,7 @@
   "NotActions": [
   ],
   "AssignableScopes": [
+    "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   ]
 }

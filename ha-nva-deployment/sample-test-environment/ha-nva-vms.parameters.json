@@ -16,7 +16,8 @@
           {
             "isPublic": "false",
             "subnetName": "dmz-external",
-            "privateIPAllocationMethod": "dynamic",
+            "privateIPAllocationMethod": "static",
+            "startingIPAddress":"10.0.0.68",
             "isPrimary": "true",
             "enableIPForwarding": true,
             "domainNameLabelPrefix": "",
@@ -25,7 +26,8 @@
           {
             "isPublic": "false",
             "subnetName": "dmz-internal",
-            "privateIPAllocationMethod": "dynamic",
+            "privateIPAllocationMethod": "static",
+            "startingIPAddress":"10.0.0.100",
             "isPrimary": "false",
             "enableIPForwarding": true,
             "domainNameLabelPrefix": "",
