@@ -9,16 +9,18 @@
         "shutdownAwaitTime": 10000,
         "monitors": [
             {
-                "monitorClass": "com.company.CustomProbeMonitor",
+                "monitorClass": "com.microsoft.azure.practices.nvadaemon.AzureProbeMonitor",
                 "settings": {
                     "azure": {
                         "subscriptionId": "xxxx-xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx",
                         "servicePrincipal": {
                             "clientId": "yyyy-yyyyyyyy-yyyy-yyyy-yyyyyyyyyyyy",
                             "tenantId": "zzzz-zzzzzzzz-zzzz-zzzz-zzzzzzzzzzzz",
-                            "keyStorePath": "<path_to_keystore>",
-                            "keyStorePassword": "<keystore_password>",
-                            "certificatePassword": "<certificate_password>"
+                            "clientCertificate": {
+                                "keyStorePath": "/nvabin/certstore.jks",
+                                "keyStorePassword": "keystoragepassword",
+                                "certificatePassword": "certpassword"
+                            }
                         }
                     },
                     "numberOfFailuresThreshold": 3,
