@@ -1,24 +1,30 @@
 FROM openjdk:8-jre-alpine
 
+ENV NVAURLZIP https://github.com/mspnp/ha-nva/raw/master/ha-nva-deployment/nva.zip 
 ENV NVA_USER nvauser
 ENV CLASSJAR nva-1.0-snapshot.jar
 ENV CONFIGFILE nvadaemon-remote.json
+ENV LOGFILE log4j.properties
 ARG SRC 
 ARG DST 
 ENV JAR ${DST}/${CLASSJAR}:${DST}/*
-ENV LOG -Dlog4j.configuration=file:${DST}/log4j.properties
+ENV LOG -Dlog4j.configuration=file:${DST}/${LOGFILE}
 ENV CLASS com.microsoft.azure.practices.nvadaemon.Main
 ENV CONFIG ${DST}/${CONFIGFILE}
 
+# install required packages bash and su-exec
 RUN apk add --no-cache \
     bash \
     su-exec
 
-RUN apk update 
-RUN apk add ca-certificates 
-RUN update-ca-certificates 
-RUN apk add openssl
+# install packages for SSL
+RUN set -x \
+ && apk update \ 
+ && apk add ca-certificates \ 
+ && update-ca-certificates \ 
+ && apk add openssl
 
+# add user to run NVA as non admin
 RUN set -x \
     && adduser -D "$NVA_USER" 
 
@@ -30,11 +36,12 @@ RUN set -x \
         gnupg 
 
  
-
-RUN chmod a+x /nva-docker-entrypoint.sh 
-RUN  wget -q https://github.com/mspnp/ha-nva/raw/master/ha-nva-deployment/nva.zip 
-RUN unzip nva.zip 
-RUN chown "$NVA_USER:$NVA_USER" "$DST"
+# give permission to entrypoint, download nva build bits and give ownership to NVA_USER
+RUN set -x \
+  && chmod a+x /nva-docker-entrypoint.sh \ 
+  && wget -q "$NVAURLZIP" \ 
+  && unzip nva.zip \
+  && chown "$NVA_USER:$NVA_USER" "$DST"
 
 ENTRYPOINT ["/nva-docker-entrypoint.sh"]
 

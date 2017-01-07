@@ -1,7 +1,7 @@
 #! /bin/bash
 ##################################################################################################
 #     bash script to create the certificates and service principal
-#     ./createspwithcertificate.sh -s {subscriptionid} -a logicalappname -c certsubjectname
+#     ./createspandcert.sh -s {subscriptionid} -a logicalappname -c certsubjectname
 #
 #
 #
@@ -11,10 +11,9 @@
 func_err() {
         echo ""
         echo "Error executing Command"
-        echo ${command}
+        echo "!:0"
         exit $?
 }
-
 
 trap  func_err  ERR
 
@@ -47,15 +46,19 @@ case $i in
     ;;
     *)
             # unknown option
-   ;;
+   ;;   
 esac
 
 done
 
+
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ]  ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
+  echo "./createspandcert.sh -s subscriptionid -a applicationName -c certsubjectName"
+  exit
 fi
+
+azure account set  "${subscription}"
 
 openssl req -x509 -days 3650 -newkey rsa:2048 -out cert.pem -nodes -subj "/CN=${certificatesubject}"
 
@@ -69,6 +72,7 @@ echo $(grep -v -e CERTIFICATE cert.pem) > cert.txt
 cert=`cat cert.txt`
 
 azure account set  "${subscription}"
+
 
 azure ad app create -n $application --home-page http://${application} \
 --identifier-uris http://${application} --cert-value "${cert}"
@@ -87,19 +91,24 @@ objectid=$(azure ad sp show \
 sleep 30
 
 echo $objectid
-#role=$(cat CustomAzureRole.json | jq '.Name')
+role=$(cat customAzureRole.json | jq '.Name')
+
 azure role create --inputfile customAzureRole.json
-roleid=$(azure role show -n "NVA Operator" --json | jq '.[0].Id')
+roleid=$(azure role show -n "${role}" --json | jq '.[0].Id')
 
 echo  ${roleid}
-azure role assignment create --objectId ${objectid} -o "NVA Operator"
+command="azure role assignment create --objectId "${objectid}" -o "${role}""
+
+eval $command
+
+#azure role assignment create --objectId ${objectid} -o ${role} 
 #-c /subscriptions/${subscription}
 
 tenant=$(azure account show --json | jq -r '.[0].tenantId')
 
 echo  "====================================================="
 echo "Application Id : ${appid}"
-echo "Tenant Id      : ${tenant}"
+echo "Tenant Id      : ${tenant}" 
 echo "======================================================="
 
 
@@ -109,3 +118,10 @@ echo "commands executed successfully. to test run command below"
 echo "============================================================"
 
 echo "azure login --service-principal --tenant ${tenant}  -u ${appid} --certificate-file nvacert.pem --thumbprint ${thumb}"
+
+
+
+
+
+
+
