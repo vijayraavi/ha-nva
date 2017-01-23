@@ -34,3 +34,4 @@
 *.png           binary
 *.so            binary
 *.war           binary
+*.tar filter=lfs diff=lfs merge=lfs -text

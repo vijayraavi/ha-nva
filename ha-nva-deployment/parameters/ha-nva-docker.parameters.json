@@ -8,14 +8,14 @@
         "computerNamePrefix": "docker",
         "size": "Standard_DS1_v2",
         "osType": "linux",
-        "adminUsername": "testuser",
-        "adminPassword": "AweS0me@PW",
+        "adminUsername": "<your admin username>",
+        "adminPassword": "<your admin password>",
         "sshPublicKey": "",
         "osAuthenticationType": "password",
         "nics": [
           {
             "isPublic": "false",
-            "subnetName": "dmz-internal",
+            "subnetName": "<your subnet name>",
             "privateIPAllocationMethod": "dynamic",
             "isPrimary": "true",
             "enableIPForwarding": false,
@@ -60,7 +60,7 @@
     "virtualNetworkSettings": {
       "value": {
         "name": "ha-nva-vnet",
-        "resourceGroup": "ha-nva-rg"
+        "resourceGroup": "<your resource group name>"
       }
     },
     "buildingBlockSettings": {
