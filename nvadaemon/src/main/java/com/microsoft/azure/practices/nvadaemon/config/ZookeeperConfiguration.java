@@ -6,8 +6,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 public class ZookeeperConfiguration {
-    private static final int DEFAULT_RETRY_SLEEP_TIME = 3000;
-    private static final int DEFAULT_NUMBER_OF_RETRIES = 5;
+    public static final int DEFAULT_RETRY_SLEEP_TIME = 3000;
+    public static final int DEFAULT_NUMBER_OF_RETRIES = 5;
 
     private String connectionString;
     private String leaderSelectorPath;
@@ -24,13 +24,15 @@ public class ZookeeperConfiguration {
             "connectionString cannot be null or empty");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(leaderSelectorPath),
             "leaderSelectorPath cannot be null or empty");
+        Preconditions.checkArgument(leaderSelectorPath.startsWith("/"),
+            "leaderSelectorPath must start with a /");
         this.connectionString = connectionString;
         this.leaderSelectorPath = leaderSelectorPath;
-        if (retrySleepTime != null) {
+        if ((retrySleepTime != null) && (retrySleepTime > 0)) {
             this.retrySleepTime = retrySleepTime;
         }
 
-        if (numberOfRetries != null) {
+        if ((numberOfRetries != null) && (numberOfRetries > 0)) {
             this.numberOfRetries = numberOfRetries;
         }
     }

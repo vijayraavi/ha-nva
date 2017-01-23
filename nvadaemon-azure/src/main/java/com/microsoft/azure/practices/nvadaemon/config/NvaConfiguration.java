@@ -1,6 +1,7 @@
 package com.microsoft.azure.practices.nvadaemon.config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -17,8 +18,9 @@ public class NvaConfiguration implements ConfigurationValidation {
 
     private String probeNetworkInterface;
     private int probePort;
-    private SocketAddress probeSocketAddress;
     private List<NamedResourceId> networkInterfaces = new ArrayList<>();
+    @JsonIgnore
+    private SocketAddress probeSocketAddress;
 
     @JsonCreator
     public NvaConfiguration(@JsonProperty("probeNetworkInterface")String probeNetworkInterface,
@@ -27,6 +29,7 @@ public class NvaConfiguration implements ConfigurationValidation {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(probeNetworkInterface),
             "probeNetworkInterface cannot be null or empty");
         Preconditions.checkNotNull(probePort, "probePort must be specified");
+        Preconditions.checkArgument(probePort > 0, "probePort must be greater than 0");
         Preconditions.checkNotNull(networkInterfaces, "networkInterfaces cannot be null");
         if (networkInterfaces.size() == 0) {
             throw new IllegalArgumentException("networkInterfaces cannot be empty");
@@ -36,13 +39,21 @@ public class NvaConfiguration implements ConfigurationValidation {
         this.probePort = probePort;
         this.networkInterfaces = networkInterfaces;
         if (this.networkInterfaces.stream()
+            .map(n -> n.getName())
+            .distinct()
+            .count() != this.networkInterfaces.size()) {
+            throw new IllegalArgumentException("Duplicate network name found");
+        }
+
+        if (this.networkInterfaces.stream()
             .map(n -> n.getId())
             .distinct()
             .count() != this.networkInterfaces.size()) {
-            throw new IllegalArgumentException("Duplicate network interface found");
+            throw new IllegalArgumentException("Duplicate network id found");
         }
     }
 
+    @JsonIgnore
     public SocketAddress getProbeSocketAddress() { return this.probeSocketAddress; }
 
     public List<NamedResourceId> getNetworkInterfaces() { return this.networkInterfaces; }
@@ -63,7 +74,7 @@ public class NvaConfiguration implements ConfigurationValidation {
         NetworkInterface probeNetworkInterface =
             azureClient.getNetworkInterfaceById(this.probeNetworkInterface);
         if (probeNetworkInterface == null) {
-            throw new IllegalArgumentException("probeNetworkInterface '" +
+            throw new ConfigurationException("probeNetworkInterface '" +
                 this.probeNetworkInterface + "' does not exist");
         }
 

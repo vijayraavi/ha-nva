@@ -3,7 +3,10 @@ package com.microsoft.azure.practices.nvadaemon.collect;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.PeekingIterator;
 
-public class Iterators {
+public final class Iterators {
+
+    private Iterators() {
+    }
 
     public static <T> CurrentPeekingIterator<T> currentPeekingIterator(PeekingIterator<? extends T> iterator) {
         return new Iterators.CurrentPeekingIteratorImpl(iterator);
@@ -24,7 +27,11 @@ public class Iterators {
             return this.currentElement;
         }
 
-        public void remove() { this.peekingIterator.remove(); }
+        public void remove() {
+            this.peekingIterator.remove();
+            // If remove() was successful, we can't have a current since it was removed.
+            this.currentElement = null;
+        }
 
         public E peek() { return this.peekingIterator.peek(); }
 

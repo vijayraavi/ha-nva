@@ -29,9 +29,6 @@ public class AzureConfiguration {
         private String tenantId;
         private String clientId;
         private String clientSecret;
-//        private String keyStorePath;
-//        private String keyStorePassword;
-//        private String certificatePassword;
         private ClientCertificate clientCertificate;
 
         @JsonIgnore
@@ -41,10 +38,7 @@ public class AzureConfiguration {
         public ServicePrincipal(@JsonProperty("tenantId")String tenantId,
                                 @JsonProperty("clientId")String clientId,
                                 @JsonProperty("clientSecret")String clientSecret,
-                                @JsonProperty("clientCertificate")ClientCertificate clientCertificate,
-                                @JsonProperty("keyStorePath")String keyStorePath,
-                                @JsonProperty("keyStorePassword")String keyStorePassword,
-                                @JsonProperty("certificatePassword")String certificatePassword) {
+                                @JsonProperty("clientCertificate")ClientCertificate clientCertificate) {
             Preconditions.checkArgument(!Strings.isNullOrEmpty(tenantId),
                 "tenantId cannot be null or empty");
             Preconditions.checkArgument(!Strings.isNullOrEmpty(clientId),
@@ -54,16 +48,14 @@ public class AzureConfiguration {
                 (clientCertificate == null))) {
                 throw new IllegalArgumentException("No authentication mode specified");
             } else if ((!Strings.isNullOrEmpty(clientSecret) &&
-                (clientCertificate == null))) {
+                (clientCertificate != null))) {
+                throw new IllegalArgumentException("Ambiguous authentication mode specified");
+            } else if (!Strings.isNullOrEmpty(clientSecret)) {
                 this.clientSecret = clientSecret;
                 this.authenticationMode = AuthenticationMode.PASSWORD;
-            } else if ((Strings.isNullOrEmpty(clientSecret) &&
-                (clientCertificate != null))) {
+            } else {
                 this.clientCertificate = clientCertificate;
                 this.authenticationMode = AuthenticationMode.CERTIFICATE;
-            }
-            else {
-                throw new IllegalArgumentException("Ambiguous authentication mode specified");
             }
 
             this.clientId = clientId;

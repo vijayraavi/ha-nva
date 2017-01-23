@@ -1,6 +1,7 @@
 package com.microsoft.azure.practices.nvadaemon.credentials;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.azure.AzureEnvironment;
@@ -26,9 +27,13 @@ public class CertificateCredentials extends TokenCredentials implements AzureTok
     public CertificateCredentials(String domain, AzureEnvironment environment,
                                   AsymmetricKeyCredentialFactory credentialFactory) {
         super(null, null);
-        this.credentialFactory = Preconditions.checkNotNull(credentialFactory);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(domain),
+            "domain cannot be null or empty");
         this.domain = domain;
-        this.environment = environment;
+        this.credentialFactory = Preconditions.checkNotNull(credentialFactory,
+            "credentialFactory cannot be null");
+        this.environment = Preconditions.checkNotNull(environment,
+            "environment cannot be null or empty");
         this.tokens = new HashMap<>();
     }
 

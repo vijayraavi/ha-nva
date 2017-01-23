@@ -10,6 +10,7 @@ import com.microsoft.azure.practices.nvadaemon.AzureClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -18,30 +19,33 @@ import java.util.stream.Collectors;
 public class AzureProbeMonitorConfiguration implements ConfigurationValidation {
     private static final Logger log = LoggerFactory.getLogger(AzureProbeMonitorConfiguration.class);
 
-    private static final int DEFAULT_PROBE_POLLING_INTERVAL = 3000;
-    private static final int DEFAULT_NUMBER_OF_FAILURES_THRESHOLD = 3;
-    private static final int DEFAULT_PROBE_CONNECT_TIMEOUT = 10000;
+    public static final int DEFAULT_NUMBER_OF_FAILURES_THRESHOLD = 3;
+    public static final int DEFAULT_PROBE_CONNECT_TIMEOUT = 10000;
+    public static final int DEFAULT_PROBE_POLLING_INTERVAL = 3000;
 
     private List<String> routeTables = new ArrayList<>();
     private List<NamedResourceId> publicIpAddresses = new ArrayList<>();
+    @JsonProperty("nvas")
     private List<NvaConfiguration> nvaConfigurations = new ArrayList<>();
+    @JsonProperty("azure")
     private AzureConfiguration azureConfiguration;
 
     private int numberOfFailuresThreshold = DEFAULT_NUMBER_OF_FAILURES_THRESHOLD;
-    private int probePollingInterval = DEFAULT_PROBE_POLLING_INTERVAL;
     private int probeConnectTimeout = DEFAULT_PROBE_CONNECT_TIMEOUT;
+    private int probePollingInterval = DEFAULT_PROBE_POLLING_INTERVAL;
 
     public static AzureProbeMonitorConfiguration create(MonitorConfiguration monitorConfiguration)
         throws ConfigurationException {
+        Preconditions.checkNotNull(monitorConfiguration,
+            "monitorConfiguration cannot be null");
         try {
             ObjectMapper mapper = new ObjectMapper()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
             AzureProbeMonitorConfiguration configuration = mapper.convertValue(
-                Preconditions.checkNotNull(monitorConfiguration,
-                    "monitorConfiguration cannot be null").getSettings(),
+                monitorConfiguration.getSettings(),
                 AzureProbeMonitorConfiguration.class);
             return configuration;
-        } catch (IllegalArgumentException e) {
+        } catch (NullPointerException | IllegalArgumentException e) {
             throw new ConfigurationException("Error parsing settings", e);
         }
     }
@@ -58,25 +62,6 @@ public class AzureProbeMonitorConfiguration implements ConfigurationValidation {
             "azureConfiguration cannot be null");
         this.nvaConfigurations = Preconditions.checkNotNull(nvaConfigurations,
             "nvaConfigurations cannot be null");
-        if (routeTables != null) {
-            this.routeTables = routeTables;
-        }
-
-        if (publicIpAddresses != null) {
-            this.publicIpAddresses = publicIpAddresses;
-        }
-
-        if (numberOfFailuresThreshold != null) {
-            this.numberOfFailuresThreshold = numberOfFailuresThreshold;
-        }
-
-        if (probeConnectTimeout != null) {
-            this.probeConnectTimeout = probeConnectTimeout;
-        }
-
-        if (probePollingInterval != null) {
-            this.probePollingInterval = probePollingInterval;
-        }
 
         if (this.nvaConfigurations.size() == 0) {
             throw new IllegalArgumentException("No nva configurations found");
@@ -100,9 +85,49 @@ public class AzureProbeMonitorConfiguration implements ConfigurationValidation {
             }
         }
 
+        if (routeTables != null) {
+            this.routeTables = routeTables;
+        }
+
+        if (publicIpAddresses != null) {
+            this.publicIpAddresses = publicIpAddresses;
+        }
+
         if ((this.routeTables.size() == 0) && (this.publicIpAddresses.size() == 0)) {
             throw new IllegalArgumentException(
                 "At least one RouteTable or PublicIpAddress must be configured");
+        }
+
+        if (this.publicIpAddresses.stream()
+            .map(n -> n.getId())
+            .distinct()
+            .count() != this.publicIpAddresses.size()) {
+            throw new IllegalArgumentException("Duplicate PublicIpAddress id found");
+        }
+
+        if (this.publicIpAddresses.stream()
+            .map(n -> n.getName())
+            .distinct()
+            .count() != this.publicIpAddresses.size()) {
+            throw new IllegalArgumentException("Duplicate PublicIpAddress name found");
+        }
+
+        if (this.routeTables.stream()
+            .distinct()
+            .count() != this.routeTables.size()) {
+            throw new IllegalArgumentException("Duplicate RouteTable found");
+        }
+
+        if (numberOfFailuresThreshold != null) {
+            this.numberOfFailuresThreshold = numberOfFailuresThreshold;
+        }
+
+        if (probeConnectTimeout != null) {
+            this.probeConnectTimeout = probeConnectTimeout;
+        }
+
+        if (probePollingInterval != null) {
+            this.probePollingInterval = probePollingInterval;
         }
     }
 
@@ -127,6 +152,13 @@ public class AzureProbeMonitorConfiguration implements ConfigurationValidation {
 
         for (NvaConfiguration config : this.nvaConfigurations) {
             config.validate(azureClient);
+        }
+
+        if (this.nvaConfigurations.stream()
+            .map(c -> ((InetSocketAddress)c.getProbeSocketAddress()).getHostName())
+            .distinct()
+            .count() != this.nvaConfigurations.size()) {
+            throw new ConfigurationException("Duplicate probe IP Address found");
         }
 
         List<String> invalidPublicIpAddresses = this.publicIpAddresses.stream()
