@@ -135,6 +135,6 @@ public class NvaConfigurationTest {
         Assertions.assertNotNull(probeSocketAddress);
         Assertions.assertEquals(probePort.intValue(), probeSocketAddress.getPort());
         Assertions.assertEquals(probeNetworkInterfacePrimaryPrivateIp,
-            probeSocketAddress.getHostName());
+            probeSocketAddress.getAddress().getHostAddress());
     }
 }
