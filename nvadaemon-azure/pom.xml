@@ -10,18 +10,6 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>nvadaemon-azure</artifactId>
     <packaging>jar</packaging>
-    <repositories>
-        <repository>
-            <id>ossrh</id>
-            <name>Sonatype Snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>daily</updatePolicy>
-            </snapshots>
-        </repository>
-    </repositories>
     <dependencies>
         <dependency>
             <groupId>com.squareup.retrofit2</groupId>
@@ -56,7 +44,7 @@
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>azure</artifactId>
-            <version>1.0.0-beta4-SNAPSHOT</version>
+            <version>1.0.0-beta4.1</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure.practices</groupId>
