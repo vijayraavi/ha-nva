@@ -15,9 +15,9 @@ RUN set -x \
  && apk add openssl
 
  
-ENV NVAURLZIP="https://github.com/mspnp/ha-nva/archive/master.zip"
-ENV NVAZIP="master.zip" 
-ENV NVAPATH="ha-nva-master"
+ENV NVAURLZIP "https://github.com/mspnp/ha-nva/archive/master.zip"
+ENV NVAZIP "master.zip" 
+ENV NVAPATH "ha-nva-master"
  
 ARG MAVEN_VERSION=3.3.9
 ARG USER_HOME_DIR="/root"
