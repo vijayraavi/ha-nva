@@ -1,6 +1,5 @@
 FROM openjdk:8-jre-alpine
 
-ENV NVAURLZIP https://github.com/mspnp/ha-nva/raw/master/ha-nva-deployment/nva.zip 
 ENV NVA_USER nvauser
 ENV CLASSJAR nva-1.0-snapshot.jar
 ENV CONFIGFILE nvadaemon-remote.json
@@ -28,8 +27,8 @@ RUN set -x \
 RUN set -x \
     && adduser -D "$NVA_USER" 
 
-
-COPY "$SRC/nva-docker-entrypoint.sh /
+COPY "$SRC" "$DST"
+COPY nva-docker-entrypoint.sh /
 
 RUN set -x \
     && apk add --no-cache --virtual .build-deps \
@@ -39,13 +38,12 @@ RUN set -x \
 # give permission to entrypoint, download nva build bits and give ownership to NVA_USER
 RUN set -x \
   && chmod a+x /nva-docker-entrypoint.sh \ 
-  && wget -q "$NVAURLZIP" \ 
-  && unzip nva.zip \
   && chown "$NVA_USER:$NVA_USER" "$DST"
 
 ENTRYPOINT ["/nva-docker-entrypoint.sh"]
 
-CMD ["su-exec","java","-cp","-config"]
+CMD ["su-exec","java", "-cp","-config"]
+
 
 
 
