@@ -1,0 +1,45 @@
+FROM openjdk:8-jdk-alpine 
+  
+RUN apk add --no-cache curl tar bash 
+
+# install required packages bash and su-exec
+RUN apk add --no-cache \
+    bash \
+    su-exec
+
+# install packages for SSL
+RUN set -x \
+ && apk update \
+ && apk add ca-certificates \
+ && update-ca-certificates \
+ && apk add openssl
+
+ 
+ENV NVAURLZIP "https://github.com/mspnp/ha-nva/archive/master.zip"
+ENV NVAZIP "master.zip" 
+ENV NVAPATH "ha-nva-master"
+ 
+ARG MAVEN_VERSION=3.3.9
+ARG USER_HOME_DIR="/root"
+
+RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
+  && curl -fsSL http://apache.osuosl.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz \
+    | tar -xzC /usr/share/maven --strip-components=1 \
+  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+
+ENV MAVEN_HOME /usr/share/maven
+ENV MAVEN_CONFIG "$USER_HOME_DIR/.m2"
+
+COPY mvn-entrypoint.sh /usr/local/bin/mvn-entrypoint.sh
+COPY settings-docker.xml /usr/share/maven/ref/
+
+VOLUME "$USER_HOME_DIR/.m2"
+
+# give permissions unzip get build and unzip
+RUN set -x \
+  && chmod a+x /usr/local/bin/mvn-entrypoint.sh 
+  
+   
+ENTRYPOINT ["/usr/local/bin/mvn-entrypoint.sh"] 
+CMD ["echo","build complete!"] 
+
