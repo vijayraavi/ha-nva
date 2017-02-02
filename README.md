@@ -95,7 +95,6 @@ Generally, the deployment has the following stages.
 
 ## Deploy the VMs that will host Docker and ZooKeeper
 
-
 [Docker][docker-overview] is a container platform used here to simplify the deployment of the ZooKeeper server nodes and the ZooKeeper NVA monitor client nodes. [ZooKeeper][zookeeper-overview] is an open-source distributed coordination service that is used to provide high availbility for the NVA monitor clientnodes. 
 
 A ZooKeeper ensemble requires at least three server nodes for quorum, and we recommend that each ZooKeeper server ensemble include an odd number of server nodes. We also recommended that at least three separate VMs be used to host ZooKeeper server nodes. You can either deploy the VMs manually or we have provided a script to deploy three VMs. 
@@ -136,10 +135,7 @@ If you deployed the sample test environment earlier, the Docker VMs were not dep
 
 To remotely log on to the jumpbox, click on the `ha-nva-jb-vm1` VM in the Azure portal, and then click on the `Connect` button. A dialog box is displayed that says:
 
-```
-Connect
-To connect to your Linux virtual machine using SSH, use the following command: ssh <username>@<public IP address>.
-```
+![](./media/connect-ssh.png)
 
 If you're connecting from a Linux OS, enter this command in the command line of your Linux OS. You will be connected to the VM and prompted to log on to the machine.
 
@@ -164,34 +160,47 @@ If you do not already have an existing fileshare, you can create one by followin
 To mount the Azure fileshare in each of the Docker VMs, SSH to each VM and follow these steps:
 
 1. Create a new mount point for the mounted fileshare. For example:
+
     ```
     sudo mkdir /media/azurefileshare
     ```
+
 2. Create a file to securely store the credentials that will be used by the OS to mount the fileshare and open it for editing. For example:
+
     ```
     sudo mkdir /usr/credentials
     sudo vi /usr/credentials/afscredentials
     ```
+
     The file requires two lines: `username=` and `password=`. Set `username=` to your storage account name, and `password=` to one of the access keys for the fileshare. These keys are available in the "Access Keys" blade of the storage account. For example:
+
     ```
     username=<storage account name>
     password=<fileshare access key>
     ```
+
     If you are in `vi`, type a colon `:` and then `wq` to save the file. Next, restrict permissions on the file with the following command:
+
     ```
     chmod 600 /usr/credentials/afscredentials
     ```
+
 3. Edit the `/etc/fstab` file:
+
     ```
     sudo vi /etc/fstab
     ```
+
     Add a line to this file as follows:
+
     ```
     //<storage account name>.file.core.windows.net/<fileshare name> <mount point created in step 1> cifs vers=3.0,credentials=<path to credentials file created at step 2>,dir_mode=0777,file_mode=0777 0 0
     ```
-    Replace `<storage account name>` with the name of your storage account, and replace `<fileshare name>` with the name of your file share.
-    If you are in `vi`, type a colon `:` and then `wq` to save the file.
+
+    Replace `<storage account name>` with the name of your storage account, and replace `<fileshare name>` with the name of your file share. If you are in `vi`, type a colon `:` and then `wq` to save the file.
+
 4. Mount the fileshare with the following command:
+
     ```
     sudo mount -a
     ```
@@ -213,10 +222,13 @@ If you want to use the bash scripts that we have created, please read the [bash 
 The NVA monitor client executes in a Docker image. To copy and load the Docker image, follow these steps:
 
 1. Get the NVA monitor client Docker image.
+
     ```
      wget -O monitor-image.tar https://github.com/mspnp/ha-nva/blob/master/ha-nva-deployment/ha-nva-client-image.tar?raw=true
     ```
+
 2. Load the Docker image.
+
     ```
     sudo docker load < monitor-image.tar
     ```
@@ -230,7 +242,8 @@ On each of the three Docker VM, start a ZooKeeper server container using the fol
 ```
 sudo docker run --name <name for docker container> --restart always --network host -e ZOO_PORT=<port number> -e ZOO_MY_ID=<unique integer ID of ZooKeeper server in ensemble> -e "ZOO_SERVERS=server.<ID>=<logical name of host or IP address>.2889.3889 server.<ID>=<logical name of host or IP address>.2900.3900 server.<ID>=<logical name of host or IP address>.2901.3901 -d zookeeper:3.4.9
 ```
-The `--name` parameter must be unique across the ZooKeeper server ensemble running on all three Docker VMs. The `ZOO_PORT=` parameter must be a unique port number on a single Docker VM, but can be reused on other Docker VMs. 
+
+The `--name` parameter must be unique across the ZooKeeper server ensemble running on all three Docker VMs. The `ZOO_PORT=` parameter must be a unique port number on a single Docker VM, but can be reused on other Docker VMs.
 
 > Note that these two parameters make up the name:value pair in the comma delimited string of the `connectionString` value in the `zookeeper` parameters of the configuration file in the next section.
 
@@ -250,7 +263,7 @@ sudo docker run --name zookeeper2 --restart always --network host -e ZOO_PORT=2
 The following could be executed on the third Docker VM to start the third ZooKeeper server node, and assumes the logical name of this VM is `docker3`:
 
 ```
-sudo docker run --name zookeeper3 --restart always --network host -e ZOO_PORT=2183 -e ZOO_MY_ID=3 -e "ZOO_SERVERS=server.1=docker1:2889:3889 server.2=docker2:2900:3900 server.3=docker3:2901:3901" -d zookeeper:3.4.9   
+sudo docker run --name zookeeper3 --restart always --network host -e ZOO_PORT=2183 -e ZOO_MY_ID=3 -e "ZOO_SERVERS=server.1=docker1:2889:3889 server.2=docker2:2900:3900 server.3=docker3:2901:3901" -d zookeeper:3.4.9
 ```
 
 On each VM, verify the docker container is running by executing the following command.
@@ -313,15 +326,18 @@ The `settings` parameter includes several sub-parameters:
             * `clientSecret` specifies the password for the service principal.
     * The `probeConnectTimeout` is an integer ands specifies the number of millisecond the client will wait after initiating a socket connection the NVA before classifying the socket connection as a failure.
     * The `routeTables` section is an array of strings that specify the name of the UDRs that will be modified by the client. *You must include the full path to the name of the UDR resource*. This is available in the "Properties" blade of the UDR resource in the Azure Portal.
+
         ```
         "routeTables": [
         "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/ha-nva-rg/providers/Microsoft.Network/routeTables/ha-nva-udr",
         "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/ha-nva-rg/providers/Microsoft.Network/routeTables/ha-nva-gateway-udr"
         ],
         ```
+
         * `publicIpAddresses` is an array of parameter objects that specify the public IP resources that are associated with the NVA NICs.
             * `name` is an indentifer you create that will be used as a reference in other sections of this configuration file. 
             * `id` is the name of the Azure PIP resource. Note again that you must include the full path to the name of the PIP resource. This is available in the "Properties" blade of the PIP resource in the Azure Portal.
+
             ```
             "publicIpAddresses": [
                 {
@@ -330,6 +346,7 @@ The `settings` parameter includes several sub-parameters:
                 }
             ],
             ```
+
         * `nvas` is an array of parameter objects that specify properties for the NICs used by the NVAs. Each NVA's information is specified in a separate element of this array:
             * `networkInterfaces` is an array the specifies each of the NICs used by the NVA:
                 * `name` specifies an identifer to indicate the group of NICs this NIC belongs to. If this NIC is the NIC associated with the PIP, this is the `name` identifier that you created in the `publicIpAddresses` section. For example, if you used the identifier `ha-nva-pip` for the `name` property in the `publicIpAddresses` section:
@@ -339,6 +356,7 @@ The `settings` parameter includes several sub-parameters:
                 * `id` specfies the name of the Azure NIC resource. As earlier, this must be the full path the name of the NIC resource.
             * `probeNetworkInterface` specfies the name of the Azure NIC resource that will be probed by the monitor client and responds to socket connection attempts to indicate the health of the NVA. Again, this is the full path the Azure NIC resource.
             * `probePort` specifies the port number that the NIC above will respond to socket connections on, indicating the health of the NVA. If a socket connection fails on this port, the NVA monitor client will consider it a failure and will retry the number of times specified in the `numberOfFailuresThreshold` property before initiating the PIP and UDR route switch.
+
             ```
             "nvas": [
             {
@@ -356,9 +374,11 @@ When you have completed the configuration file, save it and upload it to the Azu
 You will now start the Docker container for the NVA client monitor that you copied from the fileshare earlier. You will also need to copy the configuration file and nva.jks certificate to a local directory.
 
 To start the NVA monitor client container, execute the following command:
+
 ```
 sudo docker run --name clientMonitor1 --restart always --network host -v /<name of local directory>/nvadaemon-remote.json:/nvabin/nvadaemon-remote.json -v /<name of local directory>/nva.jks:/nvabin/nva.jks -d nvaimagealpine:1.2
 ```
+
 You can start an NVA monitor client container on each of the Docker VMs. You should have at least 3 containers, one on each Docker VM, and we recommend that you run more than one container on each VM. 
 
 ### Verify the NVA monitor client
@@ -366,14 +386,19 @@ You can start an NVA monitor client container on each of the Docker VMs. You sho
 To make sure the monitoring client is working, follow the steps below:
 
 1. Execute the following command on the VM:
+
     ```
     sudo docker logs <container_name> -f
     ```
+
     The command below shows the log for a continer named `clientMonitor1`.
+
     ```
     sudo docker logs clientMonitor1 -f
     ```
+
     If `clientMonitor1` is the leader, and working correctly, the output log will contain entries simliar to these:
+
     ```
     2016-12-15 22:21:10,266 DEBUG [pool-5-thread-1:NvaMonitor$MonitorCallable@95] - Waiting on signal
     2016-12-15 22:21:10,266 DEBUG [pool-5-thread-1:NvaMonitor$ScheduledMonitorCallable@56] - ScheduledMonitorCallable.await()
@@ -381,7 +406,9 @@ To make sure the monitoring client is working, follow the steps below:
     2016-12-15 22:21:13,267 DEBUG [pool-5-thread-1:NvaMonitor$ScheduledMonitorCallable@58] - Probe waiting time elapsed.  Looping
     2016-12-15 22:21:13,268 DEBUG [pool-5-thread-1:NvaMonitor$ScheduledMonitorCallable@66] - ScheduledMonitorCallable.await() complete
     ```
+
 2. Repeat step 1 for other containers. If the container is not the leader, the output will contain entries similar to these:
+
     ```
     2016-12-15 22:20:33,996 DEBUG [main-SendThread(10.0.0.102:2183):ClientCnxn$SendThread@742] - Got ping response for sessionid: 0x359033b4a610000 after 0ms 
     2016-12-15 22:20:47,339 DEBUG [main-SendThread(10.0.0.102:2183):ClientCnxn$SendThread@742] - Got ping response for sessionid: 0x359033b4a610000 after 0ms
