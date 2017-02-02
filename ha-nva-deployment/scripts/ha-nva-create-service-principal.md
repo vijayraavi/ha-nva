@@ -72,22 +72,28 @@ Save this information as you will need to enter this into a configuration file t
 After you have completed the common steps above, you can execute the bash script to create the Azure AD application object and service principal with an existing certficate by following these steps:
 
 1. Copy the bash script locally to the VM with the following command:
+
     ```
     wget https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/scripts/createspwithcert.sh
     ```
+
 2. Execute the bash script as follows:
+
     ```
     sudo bash createspandcert.sh -s <subscriptionID> -a <your Azure AD application name> -c <path to certificate>
     ```
+
     The Azure AD application name can be any name you choose. <!--The RBAC role name *must* agree with the RBAC role name specified in the `customAzureRole.json` file. -->
 
 Once the bash script has completed, the script will output the application ID and the Tenant ID as follows:
+
 ```
 =====================================================
 Application Id : <application ID>
 Tenant Id      : <tenant ID>
 =====================================================
 ```
+
 Save this information as you will need to enter this into a configuration file that is used to create the docker image for the NVA monitor client.
 
 # Bash Script to Create the Service Principal Using a Password
@@ -95,20 +101,26 @@ Save this information as you will need to enter this into a configuration file t
 After you have completed the common steps above, you can execute the bash script to create the Azure AD application object and service principal with a password by following these steps:
 
 1. Copy the bash script locally to the VM with the following command:
+
     ```
     wget https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/scripts/createspwithcert.sh
     ```
+
 2. Execute the bash script as follows:
+
     ```
     sudo bash createspwithpassword.sh -s <subscriptionID> -a <your Azure AD application name> -p <service principal password> -r <your RBAC role name from the customAzureRole.json file>
     ```
+
     The Azure AD application name can be any name you choose. The RBAC role name *must* agree with the RBAC role name specified in the `customAzureRole.json` file. 
 
 Once the bash script has completed, the script will output the application ID and the Tenant ID as follows:
+
 ```
 =====================================================
 Application Id : <application ID>
 Tenant Id      : <tenant ID>
 =====================================================
 ```
+
 Save this information as you will need to enter this into a configuration file that is used to create the docker image for the NVA monitor client.
