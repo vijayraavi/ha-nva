@@ -2,7 +2,7 @@
 ##################################################################################################
 #     bash script to create service principal with provided certificate
 #     certificate in pfx format needs to be provided
-#     ./createspwithcertificate.sh -s {subscriptionid} -a logicalappname -c certfile.pfx
+#     ./createspwithcert.sh -s {subscriptionid} -a logicalappname -c certificateSubject
 #
 #
 #
@@ -58,7 +58,7 @@ done
 
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ]  ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s=subscriptionid -a=applicationName -c=certsubjectName"
+  echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
   exit
 fi
 
