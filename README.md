@@ -257,7 +257,7 @@ To build the Docker image:
 
 6. Build the NVA client monitor Docker image:
     ```
-    docker build -t nvaimagealpine:3  --build-arg=SRC="<full path to binaries folder from step 5>" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
+    docker build -t nvaimagealpine:3  --build-arg=SRC="build" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
     ```
     You *must* copy the docker build command exactly *including the period (.) at the end*.
 
