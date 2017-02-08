@@ -252,21 +252,14 @@ To build the Docker image:
 
 5. Run the Docker container you just created to build the NVA monitor binaries:
     ```
-    docker run -it --rm -v build:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
-    ```
-    Note that you can specify any path, and the Docker container will output the NVA monitor binaries into that path:
-    ```
-    docker run -it --rm -v <full path to folder>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
+    docker run -it --rm -v <full path to binaries folder>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
     ```
 
 6. Build the NVA client monitor Docker image:
     ```
-    docker build -t nvaimagealpine:3  --build-arg=SRC="build" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
+    docker build -t nvaimagealpine:3  --build-arg=SRC="<full path to binaries folder from step 5>" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
     ```
-    You *must* copy the docker build command exactly *including the period (.) at the end*. If you changed the output directory of the Docker container in step 5, set the `--build-arg=SRC=` argument to the full path of that directory:
-    ```
-    docker build -t nvaimagealpine:3  --build-arg=SRC="<full path to folder>" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
-    ```
+    You *must* copy the docker build command exactly *including the period (.) at the end*.
 
 At this point, you can move on and repeat the steps on each VM that will run an NVA monitor daemon. Or, you can save the NVA client monitor Docker image created in step 6 to the file share and load it to each VM. To do this, follow these steps:
 
