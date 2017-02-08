@@ -87,7 +87,7 @@ Generally, the deployment has the following stages.
 2. Use SSH to log on to the docker VMs
 3. Mount an Azure fileshare on each VM
 4. Create the Azure service principal
-5. Copy and load the NVA monitor client Docker image on each docker VM
+5. Create the Docker image for the NVA monitor ZooKeeper client
 6. Start the ZooKeeper server nodes on each docker VM
 7. Edit the NVA monitor client configuration file
 8. Start the NVA monitor client docker containers
@@ -217,23 +217,79 @@ If you want to use the bash scripts that we have created, please read the [bash 
 
 > Note that you can either create the service principal with a certificate or with a password. This will affect the structure of the the NVA monitor client JSON configuration file that you will be editing in a later section.
 
-## Copy and load the Docker image for the NVA monitor ZooKeeper client
+## Create the Docker image for the NVA monitor ZooKeeper client
 
-The NVA monitor client executes in a Docker image. To copy and load the Docker image, follow these steps:
+You will now create the Docker image for the NVA monitor. This image must be stored on each VM that will run the NVA monitor. You can either build the Docker image once on one VM, save it to the fileshare you created earlier, and copy it locally to each VM, or, you can build it locally on each VM.
 
-1. Get the NVA monitor client Docker image.
+To build the Docker image:
 
+1. Create a new directory in your Linux VM. Create an `images` and `build` directory within the new directory.
     ```
-     wget -O monitor-image.tar https://github.com/mspnp/ha-nva/blob/master/ha-nva-deployment/ha-nva-client-image.tar?raw=true
-    ```
-
-2. Load the Docker image.
-
-    ```
-    sudo docker load < monitor-image.tar
+    sudo mkdir images
+    sudo mkdir build 
     ```
 
-## Create and start the ZooKeeper server docker containers on each VM
+2. Copy the following files from Github to the new directory you created in step 1:
+    ```
+    sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/docker/nva/images/nva-docker-entrypoint.sh
+    sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/docker/nva/images/mvn-entrypoint.sh
+    sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/docker/nva/images/settings-docker.xml
+    ```
+
+3. Copy the following files from Github to the `\images` directory you created in step 1:
+    ```
+    cd images
+    sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/docker/nva/images/nvaimagebuild
+    sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/docker/nva/images/nvaimagealpine
+    ```
+
+4. Go back to the new directory and build the Docker image that will build the NVA monitor binaries:
+    ```
+    cd ..
+    sudo docker build -t nvaimagebuild:1 -f images/nvaimagebuild .
+    ```
+    You *must* copy the docker build command exactly *including the period (.) at the end*.
+
+5. Run the Docker container you just created to build the NVA monitor binaries:
+    ```
+    docker run -it --rm -v build:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
+    ```
+    Note that you can specify any path, and the Docker container will output the NVA monitor binaries into that path:
+    ```
+    docker run -it --rm -v <full path to folder>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
+    ```
+
+6. Build the NVA client monitor Docker image:
+    ```
+    docker build -t nvaimagealpine:3  --build-arg=SRC="build" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
+    ```
+    You *must* copy the docker build command exactly *including the period (.) at the end*. If you changed the output directory of the Docker container in step 5, set the `--build-arg=SRC=` argument to the full path of that directory:
+    ```
+    docker build -t nvaimagealpine:3  --build-arg=SRC="<full path to folder>" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
+    ```
+
+At this point, you can move on and repeat the steps on each VM that will run an NVA monitor daemon. Or, you can save the NVA client monitor Docker image created in step 6 to the file share and load it to each VM. To do this, follow these steps:
+
+1. Save the NVA client monitor Docker image created in step 6 to your file share:
+    ```
+    sudo docker save nvaimagealpine:3 > /media/azurefileshare/nvaimagealpine3.tar
+    ```
+    If you have the fileshare mounted at a different location, substitute your path:
+    ```
+    sudo docker save nvaimagealpine:3 > <fileshare path>/nvaimagealpine3.tar
+    ```
+
+2. SSH to each of the other VMs and load the Docker image.
+
+    ```
+    sudo docker load < /media/azurefileshare/nvaimagealpine3.tar
+    ```
+    If you have the fileshare mounted at a different location, substitute your path:
+    ```
+    sudo docker load < <fileshare path>/nvaimagealpine3.tar
+    ```
+
+## Start the ZooKeeper server docker containers on each VM
 
 Each of the three Docker VMs will run at least one ZooKeeper server Docker container. 
 
@@ -369,14 +425,20 @@ The `settings` parameter includes several sub-parameters:
 
 When you have completed the configuration file, save it and upload it to the Azure fileshare created earlier so it can be copied to each of the VMs.
 
-## Start the NVA monitor client docker containers
+## Start the NVA monitor client Docker containers
 
-You will now start the Docker container for the NVA client monitor that you copied from the fileshare earlier. You will also need to copy the configuration file and nva.jks certificate to a local directory.
+You will now start the Docker container for the NVA client monitor that you copied from the fileshare earlier. You will also need to copy the configuration file and nva.jks certificate to a local directory. 
+
+The Docker container requires a log4j.properties file to specify the settings for logging on the NVA monitor client Docker container. For more information on how to create a log4j.properties file, see the [Apache Log4j 2 FAQ](http://logging.apache.org/log4j/2.x/index.html). We have provided a log4j.properties file that you can use, copy it to each VM with the following command:
+
+```
+sudo wget https://github.com/mspnp/ha-nva/blob/master/nvadaemon/src/main/resources/log4j.properties
+```
 
 To start the NVA monitor client container, execute the following command:
 
 ```
-sudo docker run --name clientMonitor1 --restart always --network host -v /<name of local directory>/nvadaemon-remote.json:/nvabin/nvadaemon-remote.json -v /<name of local directory>/nva.jks:/nvabin/nva.jks -d nvaimagealpine:1.2
+sudo docker run --name clientMonitor1 --restart always --network host -v /<name of local directory>/nvadaemon-remote.json:/nvabin/nvadaemon-remote.json -v /<name of local directory>/nva.jks:/nvabin/nva.jks jks -v <name of local directory>/log4j.properties:/nvabin/log4j.properties -d nvaimagealpine:3
 ```
 
 You can start an NVA monitor client container on each of the Docker VMs. You should have at least 3 containers, one on each Docker VM, and we recommend that you run more than one container on each VM. 
