@@ -1,7 +1,7 @@
 #! /bin/bash
 ##################################################################################################
 #     bash script to create the certificates and service principal
-#     ./createspwithcertificate.sh -s {subscriptionId} -a {applicationName} -c {certSubjectName} - r {roleName}
+#     ./createspandcert.sh -s {subscriptionId} -a {applicationName} -c {certSubjectName} - r {roleName}
 #
 #
 #
@@ -60,7 +60,7 @@ done
 
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$certificatesubject" ] || [ -z "$roleName" ] ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s subscriptionid -a applicationName -c certsubjectName"
+  echo "./createspandert.sh -s subscriptionid -a applicationName -c certsubjectName -r roleName"
 fi
 
 openssl req -x509 -days 3650 -newkey rsa:2048 -out cert.pem -nodes -subj "/CN=${certificatesubject}"

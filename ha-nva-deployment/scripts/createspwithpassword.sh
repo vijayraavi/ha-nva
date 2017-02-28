@@ -58,7 +58,7 @@ done
 
 if  [ -z "$subscription" ] || [ -z "$application" ] || [ -z "$password" ] || [ -z "$roleName" ]  ; then
   echo "missing parameters usage"
-  echo "./createspwithcert.sh -s subscriptionId -a applicationName -p password -r roleName"
+  echo "./createspwithpassword.sh -s subscriptionId -a applicationName -p password -r roleName"
   exit
 fi
 
