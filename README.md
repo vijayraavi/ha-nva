@@ -97,9 +97,9 @@ Generally, the deployment has the following stages.
 
 [Docker][docker-overview] is a container platform used here to simplify the deployment of the ZooKeeper server nodes and the ZooKeeper NVA monitor client nodes. [ZooKeeper][zookeeper-overview] is an open-source distributed coordination service that is used to provide high availbility for the NVA monitor clientnodes. 
 
-A ZooKeeper ensemble requires at least three server nodes for quorum, and we recommend that each ZooKeeper server ensemble include an odd number of server nodes. We also recommended that at least three separate VMs be used to host ZooKeeper server nodes. You can either deploy the VMs manually or we have provided a script to deploy three VMs. 
+A ZooKeeper ensemble requires at least three server nodes for quorum, and we recommend that each ZooKeeper server ensemble include an odd number of server nodes. We also recommended that at least three separate VMs be used to host ZooKeeper server nodes. You can either deploy the VMs manually or we have provided a script to deploy three VMs.
 
-### Deploy the Docker VMs manually 
+### Deploy the Docker VMs manually
 
 If you deploy your own VMs, the host operating system must be Canonical Ubuntu Server 16.04 LTS. You must install [Docker Engine](https://docs.docker.com/engine/installation/linux/ubuntulinux/) on each of the VMs. 
 
@@ -131,7 +131,7 @@ To deploy the VMs, follow these steps:
 
 ## Use SSH to remotely log on to the Docker VMs
 
-If you deployed the sample test environment earlier, the Docker VMs were not deployed with a PIP so you will not be able to remotely log on to them. However, a jumpbox named `ha-nva-jb-vm1` was deployed to the `mgmt` subnet that does have a PIP associated with it. You can remotely log on to this VM and use it to remotely log in to the Docker VMs. 
+If you deployed the sample test environment earlier, the Docker VMs were not deployed with a PIP so you will not be able to remotely log on to them. However, a jumpbox named `ha-nva-jb-vm1` was deployed to the `mgmt` subnet that does have a PIP associated with it. You can remotely log on to this VM and use it to remotely log in to the Docker VMs.
 
 To remotely log on to the jumpbox, click on the `ha-nva-jb-vm1` VM in the Azure portal, and then click on the `Connect` button. A dialog box is displayed that says:
 
@@ -250,9 +250,9 @@ To build the Docker image:
     ```
     You *must* copy the docker build command exactly *including the period (.) at the end*.
 
-5. Run the Docker container you just created to build the NVA monitor binaries:
+5. Run the Docker container you just created to build the NVA monitor binaries. 
     ```
-    docker run -it --rm -v <full path to binaries folder>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
+    docker run -it --rm -v <full path to build folder created above>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
     ```
 
 6. Build the NVA client monitor Docker image:
@@ -425,13 +425,13 @@ You will now start the Docker container for the NVA client monitor that you copi
 The Docker container requires a log4j.properties file to specify the settings for logging on the NVA monitor client Docker container. For more information on how to create a log4j.properties file, see the [Apache Log4j 2 FAQ](http://logging.apache.org/log4j/2.x/index.html). We have provided a log4j.properties file that you can use, copy it to each VM with the following command:
 
 ```
-sudo wget https://github.com/mspnp/ha-nva/blob/master/nvadaemon/src/main/resources/log4j.properties
+sudo wget https://raw.githubusercontent.com/mspnp/ha-nva/master/nvadaemon/src/main/resources/log4j.properties
 ```
 
 To start the NVA monitor client container, execute the following command:
 
 ```
-sudo docker run --name clientMonitor1 --restart always --network host -v /<name of local directory>/nvadaemon-remote.json:/nvabin/nvadaemon-remote.json -v /<name of local directory>/nva.jks:/nvabin/nva.jks jks -v <name of local directory>/log4j.properties:/nvabin/log4j.properties -d nvaimagealpine:3
+sudo docker run --name clientMonitor1 --restart always --network host -v /<name of local directory>/nvadaemon-remote.json:/nvabin/nvadaemon-remote.json -v /<name of local directory>/nva.jks:/nvabin/nva.jks -v <name of local directory>/log4j.properties:/nvabin/log4j.properties -d nvaimagealpine:3
 ```
 
 You can start an NVA monitor client container on each of the Docker VMs. You should have at least 3 containers, one on each Docker VM, and we recommend that you run more than one container on each VM. 
