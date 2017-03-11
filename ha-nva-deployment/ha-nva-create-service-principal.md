@@ -19,7 +19,7 @@ The Azure AD service principal and application object are created using a bash s
 3. Edit the `customAzureRole.json` file. In the `AssignableScopes` section, add your subscription ID in the form `/subscriptions/<your subscription ID>` 
 4. Now that you have your subscription ID, execute the bash script as follows.
     ```
-    sudo bash createspandcert.sh -s <subscriptionID> -a <hanvaapp> -c <hanvaapp>
+    sudo bash createspandcert.sh -s <subscriptionID> -a <hanvaapp> -c <hanvaapp> -r <role name used in customAzureRole.json>
     ```
     You will be prompted for a new password and asked to confirm a password two times. The first password is for the key store. The second password is for the certificate password. Make note of these passwords, you will have to enter them in the client configuration file later.
     
@@ -31,7 +31,7 @@ The Azure AD service principal and application object are created using a bash s
     =====================================================
     ```
     Save this information as you will need to enter this into a configuration file that is used to create the docker image for the NVA monitor client.
-  5. Copy the certificate to the mounted fileshare for use on the other VMs.
+5. Copy the certificate to the mounted fileshare for use on the other VMs.
     ```
     cp nva.jks <path to mounted fileshare>/nva.jks
     ```
