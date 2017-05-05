@@ -8,7 +8,7 @@ If you do not have an existing Azure network environment and would like to test 
 
 # Deploying the test environment
 
-![](https://docs.microsoft.com/en-us/azure/guidance/media/guidance-nva-ha/active-passive.png)
+![](https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/dmz/images/nva-ha/active-passive.png)
 
 The test environment includes:
 * a virtual network with four subnets.
