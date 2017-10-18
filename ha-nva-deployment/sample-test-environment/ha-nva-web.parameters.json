@@ -45,7 +45,7 @@
             "typeHandlerVersion": "1.5",
             "autoUpgradeMinorVersion": true,
             "settingsConfig": {
-              "fileUris": [ "https://raw.githubusercontent.com/mspnp/reference-architectures/master/guidance-hybrid-network-secure-vnet/extensions/linux/install-apache.sh" ],
+              "fileUris": [ "https://raw.githubusercontent.com/mspnp/ha-nva/master/ha-nva-deployment/extensions/install-apache.sh" ],
               "commandToExecute": "sh install-apache.sh"
             },
             "protectedSettingsConfig": { }
