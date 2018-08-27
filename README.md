@@ -182,7 +182,7 @@ To mount the Azure fileshare in each of the Docker VMs, SSH to each VM and follo
     If you are in `vi`, type a colon `:` and then `wq` to save the file. Next, restrict permissions on the file with the following command:
 
     ```
-    chmod 600 /usr/credentials/afscredentials
+    sudo chmod 600 /usr/credentials/afscredentials
     ```
 
 3. Edit the `/etc/fstab` file:
@@ -252,12 +252,12 @@ To build the Docker image:
 
 5. Run the Docker container you just created to build the NVA monitor binaries. 
     ```
-    docker run -it --rm -v <full path to build folder created above>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
+    sudo docker run -it --rm -v <full path to build folder created above>:/ha-nva-master/nvadaemon-assembly/target/full nvaimagebuild:1
     ```
 
 6. Build the NVA client monitor Docker image:
     ```
-    docker build -t nvaimagealpine:3  --build-arg=SRC="build" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
+    sudo docker build -t nvaimagealpine:3  --build-arg=SRC="build" --build-arg=DST="/nvabin" -f images/nvaimagealpine .
     ```
     You *must* copy the docker build command exactly *including the period (.) at the end*.
 
@@ -265,11 +265,11 @@ At this point, you can move on and repeat the steps on each VM that will run an 
 
 1. Save the NVA client monitor Docker image created in step 6 to your file share:
     ```
-    sudo docker save nvaimagealpine:3 > /media/azurefileshare/nvaimagealpine3.tar
+    sudo docker save nvaimagealpine:3 -o /media/azurefileshare/nvaimagealpine3.tar
     ```
     If you have the fileshare mounted at a different location, substitute your path:
     ```
-    sudo docker save nvaimagealpine:3 > <fileshare path>/nvaimagealpine3.tar
+    sudo docker save nvaimagealpine:3 -o <fileshare path>/nvaimagealpine3.tar
     ```
 
 2. SSH to each of the other VMs and load the Docker image.
